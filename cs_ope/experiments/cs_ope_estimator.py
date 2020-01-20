@@ -38,13 +38,14 @@ class ope_estimators():
         if self.bpol_hat_kernel is None:
             pi_behavior = np.zeros(shape=(self.N_hst, len(self.classes)))
             for c in self.classes:
-                pi_behavior_list = []
-                for i in range(self.N_hst):
-                    model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
-                    mu, _ = model.fit(self.X)
-                    pi_behavior_list.append(mu)
-                pi_behavior_list = np.array(pi_behavior_list)
-                pi_behavior[:, c] = pi_behavior_list
+                perm = np.random.permutation(self.N_hst)
+                A_temp = self.A[perm[:50]]
+                X_temp = self.X[perm[:50]]
+                model = KernelReg(A_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
+                mu, _ = model.fit(self.X)
+                pi_behavior[:, c] = mu
 
             self.bpol_hat_kernel = pi_behavior
             print(self.bpol_hat_kernel)
@@ -64,12 +65,13 @@ class ope_estimators():
         if self.f_hat_kernel is None:
             for c in self.classes:
                 f_list = []
-                for i in range(self.N_evl):
-                    model = KernelReg(self.Y[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
-                    mu, _ = model.fit(self.X)
-                    f_list.append(mu)
-                f_list = np.array(f_list)
-                f_matrix[:, c] = f_list
+                perm = np.random.permutation(self.N_hst)
+                Y_temp = self.Y[perm[:50]]
+                X_temp = self.X[perm[:50]]
+                model = KernelReg(Y_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                model = KernelReg(self.Y[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                mu, _ = model.fit(self.Z)
+                f_matrix[:, c] = mu
             
             self.f_hat_kernel = f_list
             
@@ -123,7 +125,7 @@ class ope_estimators():
                         p_evl_evl_tr = np.append(p_evl_evl_tr, p_evl_evl_cv[j], axis=0)
                         
             f_hst_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
-            f_evl_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
+            f_evl_matrix = np.zeros(shape=(len(z_tr), len(self.classes)))
             w_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
             
             for c in self.classes:
@@ -132,10 +134,10 @@ class ope_estimators():
                 f_hst_matrix[:, c] = clf.predict(x_ker_train)
                 f_evl_matrix[:, c] = clf.predict(x_ker_test)
                 
-                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_tr[:, c], x_tr, algorithm=method)
+                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_tr[:, c], z_tr, algorithm=method)
                 clf.fit(x_ker_train, a_tr[:, c])
-                    
-                w_matrix[:, c] = p_evl_hst_tr/clf.predict(x_ker_train)
+                p_bhv = clf.predict(x_ker_train)
+                w_matrix[:, c] = p_evl_hst_tr[:, c]/p_bhv
             
             densratio_obj = densratio(z_tr, x_tr)
             r = densratio_obj.compute_density_ratio(x_tr)
@@ -151,14 +153,15 @@ class ope_estimators():
             if self.bpol_hat_kernel is None:
                 pi_behavior = np.zeros(shape=(self.N_hst, len(self.classes)))
                 for c in self.classes:
-                    pi_behavior_list = []
-                    for i in range(self.N_hst):
-                        model = KernelReg(self.Y, self.A[:,c], var_type='c'*self.dim, reg_type='lc')
-                        mu, _ = model.fit(self.X)
-                        pi_behavior_list.append(mu)
-                    pi_behavior_list = np.array(pi_behavior_list)
-                    pi_behavior[:, c] = pi_behavior_list
-
+                    perm = np.random.permutation(self.N_hst)
+                    A_temp = self.A[perm[:50]]
+                    X_temp = self.X[perm[:50]]
+                    model = KernelReg(A_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                    model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                    #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
+                    mu, _ = model.fit(self.X)
+                    pi_behavior[:, c] = mu
+                    
                 self.bpol_hat_kernel = pi_behavior
                 print(self.bpol_hat_kernel)
 

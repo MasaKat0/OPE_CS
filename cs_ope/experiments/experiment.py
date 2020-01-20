@@ -1,19 +1,56 @@
 import numpy as np
+import argparse
 import sys
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import load_svmlight_file
 
+sys.path.append('../')
+print(sys.path)
 
-def data_generation(data_name):
+from cs_ope_estimator import ope_estimators
+
+
+def process_args(arguments):
+    parser = argparse.ArgumentParser(
+        description='Covariate Shift Adaptation for Off-policy Evaluation and Learning',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--dataset', '-d', type=str, default='staimage',
+                        help='Name of dataset')
+    parser.add_argument('--sample_size', '-s', type=int, default=1000,
+                        help='Sample size')
+    parser.add_argument('--num_trials', '-n', type=int, default=200,
+                        help='The number of trials')
+    parser.add_argument('--preset', '-p', type=str, default=None,
+                        choices=['satimage', 'vehicle', 'pendigits'],
+                        help="Presets of configuration")
+    args = parser.parse_args(arguments)
+
+    if args.preset == 'satimage':
+        args.sample_size = 1000
+        args.dataset = 'satimage'
+        args.num_trials = 200
+    elif args.preset == 'vehicle':
+        args.sample_size = 1000
+        args.dataset = 'vehicle'
+        args.num_trials = 200
+    elif args.preset == "pendigits":
+        args.sample_size = 1000
+        args.dataset = 'pendigits'
+        args.num_trials = 200
+    return args
+
+def data_generation(data_name, N):
     X, Y = load_svmlight_file('data/%s'%data_name)
     X = X.toarray()
     X = X/X.max(axis=0)
     Y = np.array(Y, np.int64)
 
-    N = len(X)
     N_train = np.int(N*0.7)
     N_test= N - N_train
+
+    perm = np.random.permutation(len(X))
+
+    X, Y = X[perm[:N]], Y[perm[:N]]
 
     if data_name == 'satimage.scale':
         Y = Y - 1
@@ -43,14 +80,14 @@ def data_generation(data_name):
         N_train = np.sum(train_test_split)
         N_test = N - N_train
     
-    return X, Y, Y_matrix, train_test_split, prob, classes, N, N_train, N_test
+    return X, Y, Y_matrix, train_test_split, classes, N, N_train, N_test
 
 def behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=0.7):
     N = len(X)
     num_class = len(classes)
     
-    X_train, X_test = X[train_test_split], X[~train_test_split]
-    Y_train, Y_test = Y[train_test_split], Y[~train_test_split]
+    X_train = X[train_test_split]
+    Y_train = Y[train_test_split]
     
     classifier = LogisticRegression(random_state=0, penalty='l2', C=0.1, solver='saga', multi_class='multinomial',).fit(X_train, Y_train)
     predict = np.array(classifier.predict(X), np.int64)
@@ -76,83 +113,97 @@ def behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=0.7):
 def true_value(Y_matrix, pi_evaluation, N):
      return np.sum(Y_matrix*pi_evaluation)/N
     
-def experiment(data_name):
-    num_trials = 100
-alphas = [0.7, 0.4, 0.0]
+def main(arguments):
+    args = process_args(arguments)
 
-tau_list = np.zeros(num_trials)
-res_ipw3_list = np.zeros((num_trials, len(alphas)))
-res_dm_list = np.zeros((num_trials, len(alphas)))
-res_dr1_list = np.zeros((num_trials, len(alphas)))
-res_dr2_list = np.zeros((num_trials, len(alphas)))
-res_dml1_truew_list = np.zeros((num_trials, len(alphas)))
-res_dml2_truew_list = np.zeros((num_trials, len(alphas)))
+    data_name = args.dataset
+    num_trials = args.num_trials
+    sample_size = args.sample_size
 
-for trial in range(num_trials):
-    X, Y, Y_matrix, train_test_split, x_prob, classes, N, N_train, N_test = data_generation(data_name)
+    if data_name == 'satimage':
+        data_name = 'satimage.scale'
+    
+    alphas = [0.7, 0.4, 0.0]
 
-    X_train, X_test = X[train_test_split], X[~train_test_split]
-    Y_train, Y_test = Y[train_test_split], Y[~train_test_split]
-    Y_matrix_train, Y_matrix_test = Y_matrix[train_test_split], Y_matrix[~train_test_split]
+    tau_list = np.zeros(num_trials)
+    res_ipw3_list = np.zeros((num_trials, len(alphas)))
+    res_dm_list = np.zeros((num_trials, len(alphas)))
+    res_dml1_list = np.zeros((num_trials, len(alphas)))
+    res_dml2_list = np.zeros((num_trials, len(alphas)))
 
-    pi_behavior, pi_evaluation  = behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=0.7)
+    res_ipw3_sn_list = np.zeros((num_trials, len(alphas)))
+    res_dml1_sn_list = np.zeros((num_trials, len(alphas)))
+    res_dml2_sn_list = np.zeros((num_trials, len(alphas)))
 
-    pi_behavior_train, pi_behavior_test = pi_behavior[train_test_split], pi_behavior[~train_test_split]
-    pi_evaluation_train, pi_evaluation_test = pi_evaluation[train_test_split], pi_evaluation[~train_test_split]
+    for trial in range(num_trials):
+        X, Y, Y_matrix, train_test_split, classes, N, N_train, N_test = data_generation(data_name, sample_size)
 
-    tau = true_value(Y_matrix_test, pi_evaluation_test, N_test)
+        X_train, X_test = X[train_test_split], X[~train_test_split]
 
-    for idx_alpha in  range(len(alphas)):    
-        alpha = alphas[idx_alpha]
-        pi_behavior, pi_evaluation  = behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=alpha)
+        Y_matrix_train, Y_matrix_test = Y_matrix[train_test_split], Y_matrix[~train_test_split]
 
-        perm = np.random.permutation(N_train)
+        pi_behavior, pi_evaluation  = behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=0.7)
 
-        X_seq_train, Y_matrix_seq_train, pi_behavior_seq_train, pi_evaluation_seq_train = X_train[perm], Y_matrix_train[perm], pi_behavior_train[perm], pi_evaluation_train[perm]
+        pi_behavior_train = pi_behavior[train_test_split]
+        pi_evaluation_train, pi_evaluation_test = pi_evaluation[train_test_split], pi_evaluation[~train_test_split]
 
-        Y_historical_matrix = np.zeros(shape=(N_train, len(classes)))
-        A_historical_matrix = np.zeros(shape=(N_train, len(classes)))
+        tau = true_value(Y_matrix_test, pi_evaluation_test, N_test)
+        tau_list[trial] = tau
 
-        for i in range(N_train):
-            a = np.random.choice(classes, p=pi_behavior[i])
-            Y_historical_matrix[i, a] = 1
-            A_historical_matrix[i, a] = 1
+        for idx_alpha in  range(len(alphas)):    
+            alpha = alphas[idx_alpha]
+            pi_behavior, pi_evaluation  = behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=alpha)
 
-        res_ipw3 = ipw(Y_historical_matrix, X_seq_train, X_test, classes, pi_evaluation_train, A_hst=A_historical_matrix)
-        res_dm = dm(Y_historical_matrix, X_seq_train, X_test, pi_evaluation_test, classes)
-        res_dr1 = dr(Y_historical_matrix, A_historical_matrix, X_seq_train, X_test, pi_evaluation_seq_train, pi_evaluation_test, classes, pi_behavior=pi_behavior_seq_train, method='Lasso')
-        res_dr2 = dr(Y_historical_matrix, A_historical_matrix, X_seq_train, X_test, pi_evaluation_seq_train, pi_evaluation_test, classes, pi_behavior=pi_behavior_seq_train, method='Ridge')
-        res_dml1 =dml(Y_historical_matrix, A_historical_matrix, X_seq_train, X_test, pi_evaluation_seq_train, pi_evaluation_test, classes, pi_behavior=pi_behavior_seq_train, method='Lasso')
-        res_dml2 =dml(Y_historical_matrix, A_historical_matrix, X_seq_train, X_test, pi_evaluation_seq_train, pi_evaluation_test, classes, pi_behavior=pi_behavior_seq_train, method='Ridge')
-        res_dml1_truew =dml(Y_historical_matrix, A_historical_matrix, X_seq_train, X_test, pi_evaluation_seq_train, pi_evaluation_test, classes, pi_behavior=pi_behavior_seq_train, w_est=True, method='Lasso')
-        res_dml2_truew=dml(Y_historical_matrix, A_historical_matrix, X_seq_train, X_test, pi_evaluation_seq_train, pi_evaluation_test, classes, pi_behavior=pi_behavior_seq_train, w_est=True, method='Ridge')
+            perm = np.random.permutation(N_train)
 
-        print(res_ipw3)
-        print(res_dm)
-        print(res_dr1)
-        print(res_dr2)
-        print(res_dml1_truew)
-        print(res_dml2_truew)
+            X_seq_train, Y_matrix_seq_train, pi_behavior_seq_train, pi_evaluation_seq_train = X_train[perm], Y_matrix_train[perm], pi_behavior_train[perm], pi_evaluation_train[perm]
 
-        res_ipw3_list[trial, idx_alpha] = res_ipw3
-        res_dm_list[trial, idx_alpha] = res_dm
-        res_dr1_list[trial, idx_alpha] = res_dr1
-        res_dr2_list[trial, idx_alpha] = res_dr2
-        res_dml1_truew_list[trial, idx_alpha] = res_dml1_truew
-        res_dml2_truew_list[trial, idx_alpha] = res_dml2_truew
+            Y_historical_matrix = np.zeros(shape=(N_train, len(classes)))
+            A_historical_matrix = np.zeros(shape=(N_train, len(classes)))
 
-        np.savetxt("exp_results/res_ipw3.csv", res_ipw3_list, delimiter=",")
-        np.savetxt("exp_results/res_dm.csv", res_dm_list, delimiter=",")
-        np.savetxt("exp_results/res_dr1.csv", res_dr1_list, delimiter=",")
-        np.savetxt("exp_results/res_dr2.csv", res_dr2_list, delimiter=",")
-        np.savetxt("exp_results/res_dml1.csv", res_dml1_truew_list, delimiter=",")
-        np.savetxt("exp_results/res_dml2.csv", res_dml2_truew_list, delimiter=",")
+            for i in range(N_train):
+                a = np.random.choice(classes, p=pi_behavior_seq_train[i])
+                Y_historical_matrix[i, a] = Y_matrix_seq_train[i, a]
+                A_historical_matrix[i, a] = 1
 
-    tau_list[trial] = tau
+            estimators = ope_estimators(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes, pi_evaluation_seq_train, pi_evaluation_test)
+            res_ipw3 = estimators.ipw(self_norm=False)
+            res_ipw3_sn = estimators.ipw(self_norm=True)
+            res_dm = estimators.dm()
+            res_dml1 = estimators.dml(self_norm=False, method='Lasso')
+            res_dml2 = estimators.dml(self_norm=False, method='Ridge')
+            res_dml1_sn = estimators.dml(self_norm=True, method='Lasso')
+            res_dml2_sn = estimators.dml(self_norm=True, method='Ridge')
+
+            print('True:', tau)
+            print('IPW3:', res_ipw3)
+            print('IPW3_SN:', res_ipw3_sn)
+            print('DM:', res_dm)
+            print('DML1:', res_dml1)
+            print('DML1_SN:', res_dml1_sn)
+            print('DML2:', res_dml2)
+            print('DML2_SN:', res_dml2_sn)
+
+            res_ipw3_list[trial, idx_alpha] = res_ipw3
+            res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
+            res_dm_list[trial, idx_alpha] = res_dm
+            res_dml1_list[trial, idx_alpha] = res_dml1
+            res_dml1_sn_list[trial, idx_alpha] = res_dml1_sn
+            res_dml2_list[trial, idx_alpha] = res_dml2
+            res_dml2_sn_list[trial, idx_alpha] = res_dml2_sn
+
+            np.savetxt("exp_results/true_value.csv", tau_list, delimiter=",")
+            np.savetxt("exp_results/res_ipw3.csv", res_ipw3_list, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_sn.csv", res_ipw3_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_dm.csv", res_dm_list, delimiter=",")
+            np.savetxt("exp_results/res_dml1.csv", res_dml1_list, delimiter=",")
+            np.savetxt("exp_results/res_dml1_sn.csv", res_dml1_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_dml2.csv", res_dml2_list, delimiter=",")
+            np.savetxt("exp_results/res_dml2_sn.csv", res_dml２_sn_list, delimiter=",")
+
+        tau_list[trial] = tau
     
 if __name__ == '__main__':
-    args = sys.argv
-    data_name = args[1]
-    experiment(data_name)
+    main(sys.argv[1:])
 
     
