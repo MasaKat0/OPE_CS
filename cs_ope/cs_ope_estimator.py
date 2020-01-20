@@ -7,6 +7,8 @@ from statsmodels.nonparametric.kernel_regression import KernelReg
 from sklearn.neighbors import KernelDensity
 from densratio import densratio
 
+from sklearn.kernel_ridge import KernelRidge
+
 
 class ope_estimators():
     def __init__(self, X, A, Y_matrix, Z, classes, pi_evaluation_train, pi_evaluation_test):
@@ -38,16 +40,18 @@ class ope_estimators():
         if self.bpol_hat_kernel is None:
             pi_behavior = np.zeros(shape=(self.N_hst, len(self.classes)))
             for c in self.classes:
-                pi_behavior_list = []
-                for i in range(self.N_hst):
-                    model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
-                    mu, _ = model.fit(self.X)
-                    pi_behavior_list.append(mu)
-                pi_behavior_list = np.array(pi_behavior_list)
-                pi_behavior[:, c] = pi_behavior_list
+                perm = np.random.permutation(self.N_hst)
+                A_temp = self.A[perm[:100]]
+                X_temp = self.X[perm[:100]]
+                model = KernelReg(A_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
+                mu, _ = model.fit(self.X)
+                mu[mu < 0.001] = 0.001
+                mu[mu > 0.999] = 0.999
+                pi_behavior[:, c] = mu
 
             self.bpol_hat_kernel = pi_behavior
-            print(self.bpol_hat_kernel)
         
         r = self.q_hat_kernel/self.p_hat_kernel
         w = self.pi_evaluation_train/self.bpol_hat_kernel
@@ -56,7 +60,7 @@ class ope_estimators():
 
         denomnator = self.denominator(self_norm)
         
-        return np.sum(self.Y*w*r)/denomnator
+        return np.sum(self.A*self.Y*w*r/denomnator)
 
     def dm(self):        
         f_matrix = np.zeros(shape=(self.N_evl, len(self.classes)))
@@ -64,12 +68,13 @@ class ope_estimators():
         if self.f_hat_kernel is None:
             for c in self.classes:
                 f_list = []
-                for i in range(self.N_evl):
-                    model = KernelReg(self.Y[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
-                    mu, _ = model.fit(self.X)
-                    f_list.append(mu)
-                f_list = np.array(f_list)
-                f_matrix[:, c] = f_list
+                perm = np.random.permutation(self.N_hst)
+                Y_temp = self.Y[perm[:100]]
+                X_temp = self.X[perm[:100]]
+                model = KernelReg(Y_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                model = KernelReg(self.Y[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                mu, _ = model.fit(self.Z)
+                f_matrix[:, c] = mu
             
             self.f_hat_kernel = f_list
             
@@ -123,25 +128,65 @@ class ope_estimators():
                         p_evl_evl_tr = np.append(p_evl_evl_tr, p_evl_evl_cv[j], axis=0)
                         
             f_hst_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
-            f_evl_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
-            w_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
+            f_evl_matrix = np.zeros(shape=(len(z_tr), len(self.classes)))
+            #w_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
+
+            sn_matrix = np.ones(shape=(len(x_tr), len(self.classes)))
+
+            _, a_temp = np.where(a_tr == 1)
+            clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_temp, z_tr, algorithm=method, logit=True)
+            clf.fit(x_ker_train, a_temp)
+            p_bhv = clf.predict_proba(x_ker_train)
+
+            w_matrix = p_evl_hst_tr/p_bhv
             
             for c in self.classes:
+                '''
+                clf = KernelRidge(alpha=0.01)
+                clf.fit(x_tr, y_tr[:, c])
+                f_hst_matrix[:, c] = clf.predict(x_tr)
+                f_evl_matrix[:, c] = clf.predict(z_tr)
+
+                clf = KernelRidge(alpha=0.01)
+                clf.fit(x_tr, a_tr[:, c])
+                p_bhv = clf.predict(x_tr)
+                w_matrix[:, c] = p_evl_hst_tr[:, c]/p_bhv
+                '''
+                '''
                 clf, x_ker_train, x_ker_test = KernelRegression(x_tr, y_tr[:, c], z_tr, algorithm=method)
                 clf.fit(x_ker_train, y_tr[:, c])
                 f_hst_matrix[:, c] = clf.predict(x_ker_train)
                 f_evl_matrix[:, c] = clf.predict(x_ker_test)
+                '''
+
+                '''
+                clf = KernelRidge(alpha=0.001)
+                clf.fit(x_tr, y_tr[:, c])
+                f_hst_matrix[:, c] = clf.predict(x_tr)
+                f_evl_matrix[:, c] = clf.predict(z_tr)
                 
-                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_tr[:, c], x_tr, algorithm=method)
+                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_tr[:, c], z_tr, algorithm=method, logit=True)
                 clf.fit(x_ker_train, a_tr[:, c])
-                    
-                w_matrix[:, c] = p_evl_hst_tr/clf.predict(x_ker_train)
+                p_bhv = clf.predict(x_ker_train)
+                '''
+
+                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, y_tr[:, c], z_tr, algorithm=method, logit=False)
+                clf.fit(x_ker_train, y_tr[:, c])
+                f_hst_matrix[:, c] = clf.predict(x_ker_train)
+                f_evl_matrix[:, c] = clf.predict(x_ker_test)
+
+                sn_matrix[:, c] = np.sum(a_tr[:, c]/p_bhv[:, c])
             
             densratio_obj = densratio(z_tr, x_tr)
             r = densratio_obj.compute_density_ratio(x_tr)
             r = np.array([r for c in self.classes]).T
             
-            theta = np.sum((y_tr-f_hst_matrix)*w_matrix*r)/self.N_hst + np.sum(f_evl_matrix*p_evl_evl_tr)/self.N_evl
+            if self_norm:
+                denominator = sn_matrix
+            else:
+                denominator = self.N_hst
+            
+            theta = np.sum(a_tr*(y_tr-f_hst_matrix)*w_matrix*r/denominator) + np.sum(f_evl_matrix*p_evl_evl_tr)/self.N_evl
             theta_list.append(theta)
         
         return np.mean(theta_list)
@@ -151,18 +196,23 @@ class ope_estimators():
             if self.bpol_hat_kernel is None:
                 pi_behavior = np.zeros(shape=(self.N_hst, len(self.classes)))
                 for c in self.classes:
-                    pi_behavior_list = []
-                    for i in range(self.N_hst):
-                        model = KernelReg(self.Y, self.A[:,c], var_type='c'*self.dim, reg_type='lc')
-                        mu, _ = model.fit(self.X)
-                        pi_behavior_list.append(mu)
-                    pi_behavior_list = np.array(pi_behavior_list)
-                    pi_behavior[:, c] = pi_behavior_list
-
+                    perm = np.random.permutation(self.N_hst)
+                    A_temp = self.A[perm[:50]]
+                    X_temp = self.X[perm[:50]]
+                    model = KernelReg(A_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                    model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                    #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
+                    mu, _ = model.fit(self.X)
+                    pi_behavior[:, c] = mu
+                    
                 self.bpol_hat_kernel = pi_behavior
-                print(self.bpol_hat_kernel)
 
-            return np.sum(self.bpol_hat_kernel)
+            sn_matrix = np.ones(shape=(self.N_hst, len(self.classes)))
+
+            for c in self.classes:
+                sn_matrix[:, c] = np.sum(self.A[:, c]/self.bpol_hat_kernel[:, c])
+
+            return sn_matrix
 
         else:
             return self.N_hst

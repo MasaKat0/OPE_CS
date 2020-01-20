@@ -5,9 +5,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import load_svmlight_file
 
 sys.path.append('../')
-print(sys.path)
 
 from cs_ope_estimator import ope_estimators
+
 
 
 def process_args(arguments):
@@ -122,6 +122,8 @@ def main(arguments):
 
     if data_name == 'satimage':
         data_name = 'satimage.scale'
+    elif data_name == 'vehicle':
+        data_name = 'vehicle.scale'
     
     alphas = [0.7, 0.4, 0.0]
 
@@ -184,9 +186,9 @@ def main(arguments):
             print('DML2:', res_dml2)
             print('DML2_SN:', res_dml2_sn)
 
-            res_ipw3_list[trial, idx_alpha] = res_ipw3
-            res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
-            res_dm_list[trial, idx_alpha] = res_dm
+            #res_ipw3_list[trial, idx_alpha] = res_ipw3
+            #res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
+            #res_dm_list[trial, idx_alpha] = res_dm
             res_dml1_list[trial, idx_alpha] = res_dml1
             res_dml1_sn_list[trial, idx_alpha] = res_dml1_sn
             res_dml2_list[trial, idx_alpha] = res_dml2

@@ -1,9 +1,7 @@
 import numpy as np
 from sklearn import linear_model
 
-
 import numpy as np
-from sklearn.linear_model import LogisticRegression
 
 
 def dist(x, T=None, num_basis=False):
@@ -13,7 +11,7 @@ def dist(x, T=None, num_basis=False):
     # check input argument
 
     if num_basis is False:
-        num_basis = 500
+        num_basis = 100000
 
     idx = np.random.permutation(n)[0:num_basis]
     C = x[:, idx]
@@ -25,7 +23,7 @@ def dist(x, T=None, num_basis=False):
 
     return XC_dist, TC_dist, CC_dist, n, num_basis
 
-def KernelRegression(x_train, t_train, x_test, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge'):
+def KernelRegression(x_train, t_train, x_test, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', logit=False):
     x_train, x_test = x_train.T, x_test.T
     t_train = t_train
     XC_dist, TC_dist, CC_dist, n, num_basis = dist(x_train, x_test, num_basis)
@@ -37,7 +35,7 @@ def KernelRegression(x_train, t_train, x_test, folds=5, num_basis=False, sigma_l
     if sigma_list==None:
         sigma_list = np.array([0.001, 0.01, 0.1, 1, 10, 100])
     if lda_list==None:
-        lda_list = np.array([0.01, 0.01, 0.1, 1., 10., 100])
+        lda_list = np.array([0.001, 0.01, 0.1, 1., 10., 100])
 
     score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -73,12 +71,22 @@ def KernelRegression(x_train, t_train, x_test, folds=5, num_basis=False, sigma_l
             hte = np.concatenate([hte, one], axis=1)
             for lda_idx, lda in enumerate(lda_list):
                 if algorithm == 'Lasso':
-                    clf = linear_model.Lasso(lda)
+                    if logit is True:
+                        clf = linear_model.LogisticRegression(penalty='l1', C=lda, solver='saga', multi_class='auto')
+                    else:
+                        clf = linear_model.Lasso(lda)
                 elif algorithm == 'Ridge':
-                    clf = linear_model.Ridge(lda)
+                    if logit is True:
+                        clf = linear_model.LogisticRegression(penalty='l2', C=lda, solver='saga', multi_class='auto')
+                    else:
+                        clf = linear_model.Lasso(lda)
+                
                 clf.fit(htr, ttr.T)
                 pred = clf.predict(hte)
-                score = np.mean((pred == tte)**2)
+                if logit:
+                    score = -np.mean((pred == tte)**2)
+                else:
+                    score = np.mean((pred - tte)**2)
                 """
                 if math.isnan(score):
                     code.interact(local=dict(globals(), **locals()))
@@ -97,15 +105,18 @@ def KernelRegression(x_train, t_train, x_test, folds=5, num_basis=False, sigma_l
     x_train = np.concatenate([x_train, one], axis=1)
     one = np.ones((len(x_test),1))
     x_test = np.concatenate([x_test, one], axis=1)
-    
-    print('sigma: ', sigma_chosen)
-    print('lda: ', lda_chosen)
-    
+
     if algorithm == 'Lasso':
-        clf = linear_model.Lasso(lda_chosen)
+        if logit is True:
+            clf = linear_model.LogisticRegression(penalty='l1', C=lda_chosen, solver='saga', multi_class='auto')
+        else:
+            clf = linear_model.Lasso(lda_chosen)
     elif algorithm == 'Ridge':
-        clf = linear_model.Ridge(lda_chosen)
-    
+        if logit is True:
+            clf = linear_model.LogisticRegression(penalty='l2', C=lda_chosen, solver='saga', multi_class='auto')
+        else:
+            clf = linear_model.Lasso(lda_chosen)
+
     return clf, x_train, x_test
 
 def CalcDistanceSquared(X, C):
