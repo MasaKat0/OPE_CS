@@ -67,7 +67,7 @@ class op_learning():
         self.r_ker_matrix = r
         self.sn_ker_matrix = sn_matrix
 
-    def ipw_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', logit=False):
+    def ipw_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', self_norm=False):
         x_train, x_test = self.X.T, self.Z.T
         XC_dist, TC_dist, CC_dist, n, num_basis = dist(x_train, x_test, num_basis)
         # setup the cross validation
@@ -78,9 +78,9 @@ class op_learning():
         
         # set the sigma list and lambda list
         if sigma_list==None:
-            sigma_list = np.array([0.001, 0.01, 0.1, 1, 10, 100])
+            sigma_list = np.array([0.001, 0.01, 0.1, 1, 10])
         if lda_list==None:
-            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1., 10., 100])
+            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1.,])
 
         score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -90,15 +90,13 @@ class op_learning():
             y_cv = []
             p_bhv_hst_cv = []
             r_hst_cv = []
-            sn_hst_cv = []
             
             for k in cv_hst_fold:
                 x_cv.append(np.exp(-XC_dist[:, cv_hst_index==k]/(2*sigma**2)))
                 a_cv.append(self.A[cv_hst_index==k])
                 y_cv.append(self.Y[cv_hst_index==k])
-                p_bhv_hst_cv.append(self.bpol_array[cv_hst_index==k])
+                p_bhv_hst_cv.append(self.bpol_hat_kernel[cv_hst_index==k])
                 r_hst_cv.append(self.r_ker_matrix[cv_hst_index==k])
-                sn_hst_cv.append(self.sn_ker_matrix[cv_hst_index==k])
 
             for k in range(folds):
                 #print(h0_cv[0])
@@ -111,7 +109,6 @@ class op_learning():
                         y_te = y_cv[j]
                         p_bhv_hst_te = p_bhv_hst_cv[j]
                         r_hst_te = r_hst_cv[j]
-                        sn_hst_te = sn_hst_cv[j]
                     
                     if j != k:
                         if count == 0:
@@ -120,7 +117,6 @@ class op_learning():
                             y_tr = y_cv[j]
                             p_bhv_hst_tr = p_bhv_hst_cv[j]
                             r_hst_tr = r_hst_cv[j]
-                            sn_hst_tr = sn_hst_cv[j]
                             count += 1
                         else:
                             x_tr = np.append(x_tr, x_cv[j].T, axis=0)
@@ -128,7 +124,6 @@ class op_learning():
                             y_tr = np.append(y_tr, y_cv[j], axis=0)
                             p_bhv_hst_tr = np.append(p_bhv_hst_tr, p_bhv_hst_cv[j], axis=0)
                             r_hst_tr = np.append(r_hst_tr, r_hst_cv[j], axis=0)
-                            sn_hst_tr = np.append(sn_hst_tr, sn_hst_cv[j], axis=0)
 
                 one_x = np.ones((len(x_tr),1))
                 x_tr = np.concatenate([x_tr, one_x], axis=1)
@@ -139,11 +134,11 @@ class op_learning():
                     beta = np.zeros(shape=(x_tr.shape[1], len(self.classes)))
                     print(r_hst_tr.shape)
                     print(beta.shape)
-                    f = lambda b: self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, sn_hst_tr, b, lmd=lda)
+                    f = lambda b: self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
                     res = minimize(f, beta)
                     beta = res.x
-                    score0 = - self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, sn_hst_tr, beta, lmd=0)
-                    score = - self.ipw_estimator(x_te, a_te, y_te, p_bhv_hst_te, r_hst_te, sn_hst_te, beta, lmd=0)
+                    score0 = - self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
+                    score = - self.ipw_estimator(x_te, a_te, y_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
 
                     print('score0', score0)
                     print('score', score)
@@ -166,8 +161,16 @@ class op_learning():
         one = np.ones((len(x_test),1))
         x_test = np.concatenate([x_test, one], axis=1)
 
-        return x_train, x_test, lda_chosen, sigma_chosen
+        beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
+        f = lambda b: self.ipw_estimator(x_train, self.A, self.Y, self.bpol_hat_kernel, self.r_ker_matrix, b, lmd=lda_chosen, self_norm=self_norm)
+        res = minimize(f, beta)
+        beta = res.x
+        beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
+        epol_evl = np.exp(-np.dot(x_test, beta_list))
+        epol_evl = (epol_evl.T/np.sum(epol_evl, axis=1)).T
+
+        return epol_evl
 
     def dm_est_parameters(self):
         f_matrix = np.zeros(shape=(self.N_evl, len(self.classes)))
@@ -189,7 +192,7 @@ class op_learning():
             
             self.f_hat_kernel = f_matrix
 
-    def dm_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', logit=False):
+    def dm_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge'):
         x_train, x_test = self.X.T, self.Z.T
 
         XC_dist, TC_dist, CC_dist, n, num_basis = dist(x_train, x_test, num_basis)
@@ -201,9 +204,9 @@ class op_learning():
 
         # set the sigma list and lambda list
         if sigma_list==None:
-            sigma_list = np.array([0.001, 0.01, 0.1, 1, 10, 100])
+            sigma_list = np.array([0.001, 0.01, 0.1, 1, 10])
         if lda_list==None:
-            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1., 10., 100])
+            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1.])
 
         score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -268,9 +271,18 @@ class op_learning():
         one = np.ones((len(x_test),1))
         x_test = np.concatenate([x_test, one], axis=1)
             
-        return x_train, x_test, lda_chosen, sigma_chosen
+        beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
+        f = lambda b: self.reg_estimator(x_test, self.f_hat_kernel, b, lmd=lda_chosen)
+        res = minimize(f, beta)
+        beta = res.x
+        beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
-    def dml_est_parameters(self, folds=2, method='Lasso'):
+        epol_evl = np.exp(-np.dot(x_test, beta_list))
+        epol_evl = (epol_evl.T/np.sum(epol_evl, axis=1)).T
+
+        return epol_evl
+
+    def dml_est_parameters(self, folds=2, method='Ridge'):
         self.r_array = np.zeros((self.N_hst, len(self.classes)))
         self.f_hst_array = np.zeros((self.N_hst, len(self.classes)))
         self.f_evl_array = np.zeros((self.N_evl, len(self.classes)))
@@ -293,8 +305,6 @@ class op_learning():
         a_cv = []
         y_cv = []
         z_cv = []
-        p_evl_hst_cv = []
-        p_evl_evl_cv = []
         perm_hst_cv = []
         perm_evl_cv = []
         
@@ -303,8 +313,6 @@ class op_learning():
             a_cv.append(self.A[cv_hst_index==k])
             y_cv.append(self.Y[cv_hst_index==k])
             z_cv.append(self.Z[cv_evl_index==k])
-            p_evl_hst_cv.append(self.pi_evaluation_train[cv_hst_index==k])
-            p_evl_evl_cv.append(self.pi_evaluation_test[cv_evl_index==k])
             perm_hst_cv.append(perm_hst[cv_hst_index==k])
             perm_evl_cv.append(perm_evl[cv_evl_index==k])
 
@@ -319,8 +327,6 @@ class op_learning():
                         a_tr = a_cv[j]
                         y_tr = y_cv[j]
                         z_tr = z_cv[j]
-                        p_evl_hst_tr = p_evl_hst_cv[j]
-                        p_evl_evl_tr = p_evl_evl_cv[j]
                         perm_hst_tr = perm_hst_cv[j]
                         perm_evl_tr = perm_evl_cv[j]
                         count += 1
@@ -329,8 +335,6 @@ class op_learning():
                         a_tr = np.append(a_tr, a_cv[j], axis=0)
                         y_tr = np.append(y_tr, y_cv[j], axis=0)
                         z_tr = np.append(z_tr, z_cv[j], axis=0)
-                        p_evl_hst_tr = np.append(p_evl_hst_tr, p_evl_hst_cv[j], axis=0)
-                        p_evl_evl_tr = np.append(p_evl_evl_tr, p_evl_evl_cv[j], axis=0)
                         perm_hst_tr = np.append(perm_hst_tr, perm_hst_cv[j], axis=0)
                         perm_evl_tr = np.append(perm_evl_tr, perm_evl_cv[j], axis=0)
                         
@@ -359,10 +363,7 @@ class op_learning():
         
         self.prepare = True
 
-        print(self.f_hst_array)
-        print(self.r_array)
-
-    def dml_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', logit=False):
+    def dml_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', self_norm=False):
         x_train, x_test = self.X.T, self.Z.T
         XC_dist, TC_dist, CC_dist, n, num_basis = dist(x_train, x_test, num_basis)
         # setup the cross validation
@@ -376,9 +377,9 @@ class op_learning():
 
         # set the sigma list and lambda list
         if sigma_list==None:
-            sigma_list = np.array([0.001, 0.01, 0.1, 1, 10, 100])
+            sigma_list = np.array([0.001, 0.01, 0.1, 1, 10])
         if lda_list==None:
-            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1., 10., 100])
+            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1.])
 
         score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -392,7 +393,6 @@ class op_learning():
             f_evl_cv = []
             p_bhv_hst_cv = []
             r_hst_cv = []
-            sn_hst_cv = []
             
             for k in cv_hst_fold:
                 x_cv.append(np.exp(-XC_dist[:, cv_hst_index==k]/(2*sigma**2)))
@@ -404,7 +404,6 @@ class op_learning():
                 f_evl_cv.append(self.f_evl_array[cv_evl_index==k])
                 p_bhv_hst_cv.append(self.bpol_array[cv_hst_index==k])
                 r_hst_cv.append(self.r_array[cv_hst_index==k])
-                sn_hst_cv.append(self.sn_hst_array[cv_hst_index==k])
 
             for k in range(folds):
                 #print(h0_cv[0])
@@ -420,7 +419,6 @@ class op_learning():
                         f_evl_te = f_evl_cv[j]
                         p_bhv_hst_te = p_bhv_hst_cv[j]
                         r_hst_te = r_hst_cv[j]
-                        sn_hst_te = sn_hst_cv[j]
                     
                     if j != k:
                         if count == 0:
@@ -432,7 +430,6 @@ class op_learning():
                             f_evl_tr = f_evl_cv[j]
                             p_bhv_hst_tr = p_bhv_hst_cv[j]
                             r_hst_tr = r_hst_cv[j]
-                            sn_hst_tr = sn_hst_cv[j]
                             count += 1
                         else:
                             x_tr = np.append(x_tr, x_cv[j].T, axis=0)
@@ -443,7 +440,6 @@ class op_learning():
                             f_evl_tr = np.append(f_evl_tr, f_evl_cv[j], axis=0)
                             p_bhv_hst_tr = np.append(p_bhv_hst_tr, p_bhv_hst_cv[j], axis=0)
                             r_hst_tr = np.append(r_hst_tr, r_hst_cv[j], axis=0)
-                            sn_hst_tr = np.append(sn_hst_tr, sn_hst_cv[j], axis=0)
 
                 print(folds)
                 print(j)
@@ -463,11 +459,11 @@ class op_learning():
                     beta = np.zeros(shape=(x_tr.shape[1], len(self.classes)))
                     print(r_hst_tr.shape)
                     print(beta.shape)
-                    f = lambda b: self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, sn_hst_tr, b, lmd=lda)
+                    f = lambda b: self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
                     res = minimize(f, beta)
                     beta = res.x
-                    score0 = - self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, sn_hst_tr, beta, lmd=0)
-                    score = - self.dm_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, sn_hst_te, beta, lmd=0)
+                    score0 = - self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
+                    score = - self.dm_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
 
                     print('score0', score0)
                     print('score', score)
@@ -490,9 +486,18 @@ class op_learning():
         one = np.ones((len(x_test),1))
         x_test = np.concatenate([x_test, one], axis=1)
 
-        return x_train, x_test, lda_chosen, sigma_chosen
+        beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
+        f = lambda b: self.dm_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
+        res = minimize(f, beta)
+        beta = res.x
+        beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
-    def dm_objective_function(self, x, a, y, z, f_hst, f_evl, bpol, r, sn, beta):
+        epol_evl = np.exp(-np.dot(x_test, beta_list))
+        epol_evl = (epol_evl.T/np.sum(epol_evl, axis=1)).T
+
+        return epol_evl
+
+    def dm_objective_function(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, self_norm=False):
         epol_hst = np.exp(-np.dot(x, beta))
         epol_hst = (epol_hst.T/np.sum(epol_hst, axis=1)).T
         epol_evl = np.exp(-np.dot(z, beta))
@@ -500,18 +505,20 @@ class op_learning():
         w = epol_hst/bpol
 
         sn_matrix = np.ones(shape=(len(x), len(self.classes)))
-        
-        for c in self.classes:
-            sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
+        if self_norm is True:
+            for c in self.classes:
+                sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
+        else:
+            sn_matrix /= len(x)
 
         theta = np.sum(a*(y-f_hst)*w*r/len(x)) + np.sum(f_evl*epol_evl)/len(f_evl)
 
         return theta
 
-    def dm_estimator(self, x, a, y, z, f_hst, f_evl, bpol, r, sn, beta, lmd=0.):
+    def dm_estimator(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, lmd=0., self_norm=False):
         beta_list = beta.reshape(x.shape[1], len(self.classes))
 
-        return -self.dm_objective_function(x, a, y, z, f_hst, f_evl, bpol, r, sn, beta_list) + lmd*np.sum(beta**2)
+        return -self.dm_objective_function(x, a, y, z, f_hst, f_evl, bpol, r, beta_list, self_norm=self_norm) + lmd*np.sum(beta**2)
 
     def reg_estimator(self, z, f, beta, lmd=0.):
         beta_list = beta.reshape(z.shape[1], len(self.classes))
@@ -524,27 +531,29 @@ class op_learning():
 
         return np.sum(f*epol_evl)/len(z)
 
-    def ipw_objective_function(self, x, a, y, bpol, r, sn, beta):
+    def ipw_objective_function(self, x, a, y, bpol, r, beta, self_norm=False):
         epol_hst = np.exp(-np.dot(x, beta))
         epol_hst = (epol_hst.T/np.sum(epol_hst, axis=1)).T
         
         w = epol_hst/bpol
 
         sn_matrix = np.ones(shape=(len(x), len(self.classes)))
-        
-        for c in self.classes:
-            sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
+        if self_norm is True:
+            for c in self.classes:
+                sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
+        else:
+            sn_matrix /= len(x)
 
-        w = self.pi_evaluation_train/self.bpol_hat_kernel
+        w = epol_hst/bpol
 
-        theta = np.sum(self.A*self.Y*w*r/sn_matrix)
+        theta = np.sum(a*y*w*r/sn_matrix)
         
         return theta
 
-    def ipw_estimator(self, x, a, y, bpol, r, sn, beta, lmd=0.):
+    def ipw_estimator(self, x, a, y, bpol, r, beta, lmd=0., self_norm=False):
         beta_list = beta.reshape(x.shape[1], len(self.classes))
 
-        return -self.ipw_objective_function(x, a, y, bpol, r, sn, beta_list) + lmd*np.sum(beta**2)
+        return -self.ipw_objective_function(x, a, y, bpol, r, beta_list, self_norm=self_norm) + lmd*np.sum(beta**2)
 
 def CalcDistanceSquared(X, C):
     '''

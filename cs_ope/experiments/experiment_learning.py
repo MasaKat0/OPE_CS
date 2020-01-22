@@ -125,17 +125,15 @@ def main(arguments):
         data_name = 'satimage.scale'
     elif data_name == 'vehicle':
         data_name = 'vehicle.scale'
-    
+
     alphas = [0.7, 0.4, 0.0]
 
     tau_list = np.zeros(num_trials)
     res_ipw3_list = np.zeros((num_trials, len(alphas)))
     res_dm_list = np.zeros((num_trials, len(alphas)))
-    res_dml1_list = np.zeros((num_trials, len(alphas)))
     res_dml2_list = np.zeros((num_trials, len(alphas)))
 
     res_ipw3_sn_list = np.zeros((num_trials, len(alphas)))
-    res_dml1_sn_list = np.zeros((num_trials, len(alphas)))
     res_dml2_sn_list = np.zeros((num_trials, len(alphas)))
 
     for trial in range(num_trials):
@@ -166,48 +164,46 @@ def main(arguments):
                 a = np.random.choice(classes, p=pi_behavior_seq_train[i])
                 Y_historical_matrix[i, a] = Y_matrix_seq_train[i, a]
                 A_historical_matrix[i, a] = 1
+                
+            estimators = op_learning(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes, pi_evaluation_seq_train, pi_evaluation_test)
+            
+            estimators.ipw_est_parameters()
+            epol_ipw = estimators.ipw_fit(folds=5, algorithm='Ridge', self_norm=False)
+            epol_ipw_sn = estimators.ipw_fit(folds=5, algorithm='Ridge', self_norm=True)
 
-            estimators = op_learning(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes)
-            estimators.est_parameters()
-            estimators.fit()
+            estimators.dm_est_parameters()
+            epol_dm = estimators.dm_fit(folds=5, algorithm='Ridge', self_norm=False)
+            
+            estimators.dml_est_parameters(folds=5, algorithm='Ridge')
+            epol_dml = estimators.dml_fit(folds=5, algorithm='Ridge', self_norm=False)
+            epol_dml_sn = estimators.dml_fit(folds=5, algorithm='Ridge', self_norm=True)
 
-
-            res_ipw3 = estimators.ipw(self_norm=False)
-            res_ipw3_sn = estimators.ipw(self_norm=True)
-            res_dm = estimators.dm()
-            res_dml1 = estimators.dml(self_norm=False, method='Lasso')
-            res_dml2 = estimators.dml(self_norm=False, method='Ridge')
-            res_dml1_sn = estimators.dml(self_norm=True, method='Lasso')
-            res_dml2_sn = estimators.dml(self_norm=True, method='Ridge')
+            res_ipw3 =  true_value(Y_matrix_test, epol_ipw, N_test)
+            res_ipw3_sn =  true_value(Y_matrix_test, epol_ipw_sn, N_test)
+            res_dm =  true_value(Y_matrix_test, epol_dm, N_test)
+            res_dml2 =  true_value(Y_matrix_test, epol_dml, N_test)
+            res_dml2_sn =  true_value(Y_matrix_test, epol_dml_sn, N_test)
 
             print('trial', trial)
             print('True:', tau)
             print('IPW3:', res_ipw3)
             print('IPW3_SN:', res_ipw3_sn)
             print('DM:', res_dm)
-            print('DML1:', res_dml1)
-            print('DML1_SN:', res_dml1_sn)
             print('DML2:', res_dml2)
             print('DML2_SN:', res_dml2_sn)
 
             res_ipw3_list[trial, idx_alpha] = res_ipw3
             res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
             res_dm_list[trial, idx_alpha] = res_dm
-            res_dml1_list[trial, idx_alpha] = res_dml1
-            res_dml1_sn_list[trial, idx_alpha] = res_dml1_sn
             res_dml2_list[trial, idx_alpha] = res_dml2
             res_dml2_sn_list[trial, idx_alpha] = res_dml2_sn
 
             np.savetxt("exp_results/true_value_%s.csv"%data_name, tau_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_sn_%s.csv"%data_name, res_ipw3_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_dm_%s.csv"%data_name, res_dm_list, delimiter=",")
-            np.savetxt("exp_results/res_dml1_%s.csv"%data_name, res_dml1_list, delimiter=",")
-            np.savetxt("exp_results/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
-            np.savetxt("exp_results/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
-
-        tau_list[trial] = tau
+            np.savetxt("exp_results/res_opl_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
+            np.savetxt("exp_results/res_opl_ipw3_sn_%s.csv"%data_name, res_ipw3_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_opl_dm_%s.csv"%data_name, res_dm_list, delimiter=",")
+            np.savetxt("exp_results/res_opl_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
+            np.savetxt("exp_results/res_opl_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
     
 if __name__ == '__main__':
     main(sys.argv[1:])
