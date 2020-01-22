@@ -40,16 +40,19 @@ class ope_estimators():
         if self.bpol_hat_kernel is None:
             pi_behavior = np.zeros(shape=(self.N_hst, len(self.classes)))
             for c in self.classes:
-                perm = np.random.permutation(self.N_hst)
-                A_temp = self.A[perm[:100]]
-                X_temp = self.X[perm[:100]]
-                model = KernelReg(A_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
-                model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
-                #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
-                mu, _ = model.fit(self.X)
-                mu[mu < 0.001] = 0.001
-                mu[mu > 0.999] = 0.999
-                pi_behavior[:, c] = mu
+                while True:
+                    perm = np.random.permutation(self.N_hst)
+                    A_temp = self.A[perm[:100]]
+                    X_temp = self.X[perm[:100]]
+                    model = KernelReg(A_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                    #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                    #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
+                    mu, _ = model.fit(self.X)
+                    mu[mu < 0.001] = 0.001
+                    mu[mu > 0.999] = 0.999
+                    pi_behavior[:, c] = mu
+                    if len(mu[~((mu > -100)&(mu < 100))]) == 0:
+                        break
 
             self.bpol_hat_kernel = pi_behavior
         
@@ -67,16 +70,20 @@ class ope_estimators():
 
         if self.f_hat_kernel is None:
             for c in self.classes:
-                f_list = []
-                perm = np.random.permutation(self.N_hst)
-                Y_temp = self.Y[perm[:100]]
-                X_temp = self.X[perm[:100]]
-                model = KernelReg(Y_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
-                model = KernelReg(self.Y[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
-                mu, _ = model.fit(self.Z)
-                f_matrix[:, c] = mu
+                while True:
+                    perm = np.random.permutation(self.N_hst)
+                    Y_temp = self.Y[perm[:100]]
+                    X_temp = self.X[perm[:100]]
+                    model = KernelReg(Y_temp[:,c], X_temp, var_type='c'*self.dim, reg_type='lc')
+                    #model = KernelReg(self.Y[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
+                    mu, _ = model.fit(self.Z)
+                    mu[mu < 0.001] = 0.001
+                    mu[mu > 0.999] = 0.999
+                    f_matrix[:, c] = mu
+                    if len(mu[~((mu > -100)&(mu < 100))]) == 0:
+                        break
             
-            self.f_hat_kernel = f_list
+            self.f_hat_kernel = f_matrix
             
         return np.sum(f_matrix*self.pi_evaluation_test)/self.N_evl
 

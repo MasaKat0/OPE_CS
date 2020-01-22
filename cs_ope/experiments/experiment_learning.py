@@ -6,8 +6,7 @@ from sklearn.datasets import load_svmlight_file
 
 sys.path.append('../')
 
-from cs_ope_estimator import ope_estimators
-
+from cs_opl import op_learning
 
 
 def process_args(arguments):
@@ -26,17 +25,17 @@ def process_args(arguments):
     args = parser.parse_args(arguments)
 
     if args.preset == 'satimage':
-        args.sample_size = 1000
+        args.sample_size = 800
         args.dataset = 'satimage'
-        args.num_trials = 200
+        args.num_trials = 100
     elif args.preset == 'vehicle':
-        args.sample_size = 1000
+        args.sample_size = 800
         args.dataset = 'vehicle'
-        args.num_trials = 200
+        args.num_trials = 100
     elif args.preset == "pendigits":
-        args.sample_size = 1000
+        args.sample_size = 800
         args.dataset = 'pendigits'
-        args.num_trials = 200
+        args.num_trials = 100
     return args
 
 def data_generation(data_name, N):
@@ -53,6 +52,8 @@ def data_generation(data_name, N):
     X, Y = X[perm[:N]], Y[perm[:N]]
 
     if data_name == 'satimage.scale':
+        Y = Y - 1
+    elif data_name == 'vehicle.scale':
         Y = Y - 1
 
     classes = np.unique(Y)
@@ -144,20 +145,18 @@ def main(arguments):
 
         Y_matrix_train, Y_matrix_test = Y_matrix[train_test_split], Y_matrix[~train_test_split]
 
-        pi_behavior, pi_evaluation  = behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=0.7)
-
-        pi_behavior_train = pi_behavior[train_test_split]
-        pi_evaluation_train, pi_evaluation_test = pi_evaluation[train_test_split], pi_evaluation[~train_test_split]
-
-        tau = true_value(Y_matrix_test, pi_evaluation_test, N_test)
-        tau_list[trial] = tau
-
         for idx_alpha in  range(len(alphas)):    
             alpha = alphas[idx_alpha]
+
             pi_behavior, pi_evaluation  = behavior_and_evaluation_policy(X, Y, train_test_split, classes, alpha=alpha)
 
-            perm = np.random.permutation(N_train)
+            pi_behavior_train = pi_behavior[train_test_split]
+            pi_evaluation_train, pi_evaluation_test = pi_evaluation[train_test_split], pi_evaluation[~train_test_split]
 
+            tau = true_value(Y_matrix_test, pi_evaluation_test, N_test)
+            tau_list[trial] = tau
+
+            perm = np.random.permutation(N_train)
             X_seq_train, Y_matrix_seq_train, pi_behavior_seq_train, pi_evaluation_seq_train = X_train[perm], Y_matrix_train[perm], pi_behavior_train[perm], pi_evaluation_train[perm]
 
             Y_historical_matrix = np.zeros(shape=(N_train, len(classes)))
@@ -168,7 +167,11 @@ def main(arguments):
                 Y_historical_matrix[i, a] = Y_matrix_seq_train[i, a]
                 A_historical_matrix[i, a] = 1
 
-            estimators = ope_estimators(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes, pi_evaluation_seq_train, pi_evaluation_test)
+            estimators = op_learning(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes)
+            estimators.est_parameters()
+            estimators.fit()
+
+
             res_ipw3 = estimators.ipw(self_norm=False)
             res_ipw3_sn = estimators.ipw(self_norm=True)
             res_dm = estimators.dm()
@@ -177,6 +180,7 @@ def main(arguments):
             res_dml1_sn = estimators.dml(self_norm=True, method='Lasso')
             res_dml2_sn = estimators.dml(self_norm=True, method='Ridge')
 
+            print('trial', trial)
             print('True:', tau)
             print('IPW3:', res_ipw3)
             print('IPW3_SN:', res_ipw3_sn)
@@ -186,22 +190,22 @@ def main(arguments):
             print('DML2:', res_dml2)
             print('DML2_SN:', res_dml2_sn)
 
-            #res_ipw3_list[trial, idx_alpha] = res_ipw3
-            #res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
-            #res_dm_list[trial, idx_alpha] = res_dm
+            res_ipw3_list[trial, idx_alpha] = res_ipw3
+            res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
+            res_dm_list[trial, idx_alpha] = res_dm
             res_dml1_list[trial, idx_alpha] = res_dml1
             res_dml1_sn_list[trial, idx_alpha] = res_dml1_sn
             res_dml2_list[trial, idx_alpha] = res_dml2
             res_dml2_sn_list[trial, idx_alpha] = res_dml2_sn
 
-            np.savetxt("exp_results/true_value.csv", tau_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3.csv", res_ipw3_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_sn.csv", res_ipw3_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_dm.csv", res_dm_list, delimiter=",")
-            np.savetxt("exp_results/res_dml1.csv", res_dml1_list, delimiter=",")
-            np.savetxt("exp_results/res_dml1_sn.csv", res_dml1_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_dml2.csv", res_dml2_list, delimiter=",")
-            np.savetxt("exp_results/res_dml2_sn.csv", res_dml２_sn_list, delimiter=",")
+            np.savetxt("exp_results/true_value_%s.csv"%data_name, tau_list, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_sn_%s.csv"%data_name, res_ipw3_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_dm_%s.csv"%data_name, res_dm_list, delimiter=",")
+            np.savetxt("exp_results/res_dml1_%s.csv"%data_name, res_dml1_list, delimiter=",")
+            np.savetxt("exp_results/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
+            np.savetxt("exp_results/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
 
         tau_list[trial] = tau
     
