@@ -57,6 +57,8 @@ class ope_estimators():
             self.bpol_hat_kernel = pi_behavior
         
         r = self.q_hat_kernel/self.p_hat_kernel
+        r[r < 0.001] = 0.001
+        r[r > 20] = 20
         w = self.pi_evaluation_train/self.bpol_hat_kernel
         
         r = np.array([r for c in range(len(self.classes))]).T

@@ -13,7 +13,7 @@ def process_args(arguments):
     parser = argparse.ArgumentParser(
         description='Covariate Shift Adaptation for Off-policy Evaluation and Learning',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dataset', '-d', type=str, default='staimage',
+    parser.add_argument('--dataset', '-d', type=str, default='satimage',
                         help='Name of dataset')
     parser.add_argument('--sample_size', '-s', type=int, default=1000,
                         help='Sample size')
@@ -165,7 +165,7 @@ def main(arguments):
                 Y_historical_matrix[i, a] = Y_matrix_seq_train[i, a]
                 A_historical_matrix[i, a] = 1
                 
-            estimators = op_learning(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes, pi_evaluation_seq_train, pi_evaluation_test)
+            estimators = op_learning(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes)
             
             estimators.ipw_est_parameters()
             epol_ipw = estimators.ipw_fit(folds=5, algorithm='Ridge', self_norm=False)

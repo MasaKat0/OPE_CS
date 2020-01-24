@@ -48,8 +48,8 @@ class op_learning():
                     #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc', bw=model.bw)
                     #model = KernelReg(self.A[:,c], self.X, var_type='c'*self.dim, reg_type='lc')
                     mu, _ = model.fit(self.X)
-                    mu[mu < 0.001] = 0.001
-                    mu[mu > 0.999] = 0.999
+                    mu[mu < 0.01] = 0.01
+                    mu[mu > 0.99] = 0.99
                     pi_behavior[:, c] = mu
                     if len(mu[~((mu > -100)&(mu < 100))]) == 0:
                         break
@@ -57,6 +57,8 @@ class op_learning():
             self.bpol_hat_kernel = pi_behavior
         
         r = self.q_hat_kernel/self.p_hat_kernel
+        r[r < 0.001] = 0.001
+        r[r > 20] = 20
         r = np.array([r for c in range(len(self.classes))]).T
 
         sn_matrix = np.ones(shape=(self.N_hst, len(self.classes)))
@@ -80,7 +82,7 @@ class op_learning():
         if sigma_list==None:
             sigma_list = np.array([0.001, 0.01, 0.1, 1, 10])
         if lda_list==None:
-            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1.,])
+            lda_list = np.array([0.0001, 0.001, 0.01, 0.1, 1.,])
 
         score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -135,7 +137,7 @@ class op_learning():
                     print(r_hst_tr.shape)
                     print(beta.shape)
                     f = lambda b: self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
-                    res = minimize(f, beta)
+                    res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
                     beta = res.x
                     score0 = - self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
                     score = - self.ipw_estimator(x_te, a_te, y_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
@@ -163,7 +165,7 @@ class op_learning():
 
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.ipw_estimator(x_train, self.A, self.Y, self.bpol_hat_kernel, self.r_ker_matrix, b, lmd=lda_chosen, self_norm=self_norm)
-        res = minimize(f, beta)
+        res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
@@ -206,7 +208,7 @@ class op_learning():
         if sigma_list==None:
             sigma_list = np.array([0.001, 0.01, 0.1, 1, 10])
         if lda_list==None:
-            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1.])
+            lda_list = np.array([0.0001, 0.001, 0.01, 0.1, 1.])
 
         score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -245,7 +247,7 @@ class op_learning():
                 for lda_idx, lda in enumerate(lda_list):
                     beta = np.zeros(shape=(z_tr.shape[1], len(self.classes)))
                     f = lambda b: self.reg_estimator(z_tr, f_evl_tr, b, lmd=lda)
-                    res = minimize(f, beta)
+                    res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
                     beta = res.x
                     score0 = - self.reg_estimator(z_tr, f_evl_tr, beta, lmd=0.)
                     score = - self.reg_estimator(z_te, f_evl_te, beta, lmd=0.)
@@ -273,7 +275,7 @@ class op_learning():
             
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.reg_estimator(x_test, self.f_hat_kernel, b, lmd=lda_chosen)
-        res = minimize(f, beta)
+        res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
@@ -379,7 +381,7 @@ class op_learning():
         if sigma_list==None:
             sigma_list = np.array([0.001, 0.01, 0.1, 1, 10])
         if lda_list==None:
-            lda_list = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1, 1.])
+            lda_list = np.array([0.0001, 0.001, 0.01, 0.1, 1.])
 
         score_cv = np.zeros((len(sigma_list), len(lda_list)))
 
@@ -460,7 +462,7 @@ class op_learning():
                     print(r_hst_tr.shape)
                     print(beta.shape)
                     f = lambda b: self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
-                    res = minimize(f, beta)
+                    res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
                     beta = res.x
                     score0 = - self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
                     score = - self.dm_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
@@ -488,7 +490,7 @@ class op_learning():
 
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.dm_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
-        res = minimize(f, beta)
+        res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
@@ -532,7 +534,15 @@ class op_learning():
         return np.sum(f*epol_evl)/len(z)
 
     def ipw_objective_function(self, x, a, y, bpol, r, beta, self_norm=False):
-        epol_hst = np.exp(-np.dot(x, beta))
+        g = -np.dot(x, beta)
+
+        for c in self.classes:
+            g[:,c][(g[:,c]>-10)*(g[:,c]<10)] = np.exp(g[:,c][(g[:,c]>-10)*(g[:,c]<10)])
+            g[:,c][(g[:,c]>10)] = np.exp(10)
+            g[:,c][(g[:,c]<-10)] = np.exp(-10)
+        
+        epol_hst = g
+        
         epol_hst = (epol_hst.T/np.sum(epol_hst, axis=1)).T
         
         w = epol_hst/bpol
@@ -543,8 +553,6 @@ class op_learning():
                 sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
         else:
             sn_matrix /= len(x)
-
-        w = epol_hst/bpol
 
         theta = np.sum(a*y*w*r/sn_matrix)
         
