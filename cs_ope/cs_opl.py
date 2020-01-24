@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pdå
 import statsmodels.api as sm
 
 from kernel_regression import KernelRegression
@@ -461,11 +460,11 @@ class op_learning():
                     beta = np.zeros(shape=(x_tr.shape[1], len(self.classes)))
                     print(r_hst_tr.shape)
                     print(beta.shape)
-                    f = lambda b: self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
+                    f = lambda b: self.dml_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
                     res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
                     beta = res.x
-                    score0 = - self.dm_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
-                    score = - self.dm_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
+                    score0 = - self.dml_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
+                    score = - self.dml_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
 
                     print('score0', score0)
                     print('score', score)
@@ -489,7 +488,7 @@ class op_learning():
         x_test = np.concatenate([x_test, one], axis=1)
 
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
-        f = lambda b: self.dm_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
+        f = lambda b: self.dml_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
         res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
@@ -499,7 +498,7 @@ class op_learning():
 
         return epol_evl
 
-    def dm_objective_function(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, self_norm=False):
+    def dml_objective_function(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, self_norm=False):
         epol_hst = np.exp(-np.dot(x, beta))
         epol_hst = (epol_hst.T/np.sum(epol_hst, axis=1)).T
         epol_evl = np.exp(-np.dot(z, beta))
@@ -511,13 +510,13 @@ class op_learning():
             for c in self.classes:
                 sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
         else:
-            sn_matrix /= len(x)
+            sn_matrix = len(x)
 
-        theta = np.sum(a*(y-f_hst)*w*r/len(x)) + np.sum(f_evl*epol_evl)/len(f_evl)
+        theta = np.sum(a*(y-f_hst)*w*r/sn_matrix) + np.sum(f_evl*epol_evl)/len(f_evl)
 
         return theta
 
-    def dm_estimator(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, lmd=0., self_norm=False):
+    def dml_estimator(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, lmd=0., self_norm=False):
         beta_list = beta.reshape(x.shape[1], len(self.classes))
 
         return -self.dm_objective_function(x, a, y, z, f_hst, f_evl, bpol, r, beta_list, self_norm=self_norm) + lmd*np.sum(beta**2)
@@ -552,7 +551,7 @@ class op_learning():
             for c in self.classes:
                 sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
         else:
-            sn_matrix /= len(x)
+            sn_matrix = len(x)
 
         theta = np.sum(a*y*w*r/sn_matrix)
         
