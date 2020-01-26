@@ -519,7 +519,7 @@ class op_learning():
     def dml_estimator(self, x, a, y, z, f_hst, f_evl, bpol, r, beta, lmd=0., self_norm=False):
         beta_list = beta.reshape(x.shape[1], len(self.classes))
 
-        return -self.dm_objective_function(x, a, y, z, f_hst, f_evl, bpol, r, beta_list, self_norm=self_norm) + lmd*np.sum(beta**2)
+        return -self.dml_objective_function(x, a, y, z, f_hst, f_evl, bpol, r, beta_list, self_norm=self_norm) + lmd*np.sum(beta**2)
 
     def reg_estimator(self, z, f, beta, lmd=0.):
         beta_list = beta.reshape(z.shape[1], len(self.classes))

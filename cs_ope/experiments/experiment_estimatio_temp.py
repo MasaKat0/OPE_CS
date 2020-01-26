@@ -28,15 +28,15 @@ def process_args(arguments):
     if args.preset == 'satimage':
         args.sample_size = 800
         args.dataset = 'satimage'
-        args.num_trials = 50
+        args.num_trials = 100
     elif args.preset == 'vehicle':
         args.sample_size = 800
         args.dataset = 'vehicle'
-        args.num_trials = 50
+        args.num_trials = 100
     elif args.preset == "pendigits":
         args.sample_size = 800
         args.dataset = 'pendigits'
-        args.num_trials = 50
+        args.num_trials = 100
     return args
 
 def data_generation(data_name, N):

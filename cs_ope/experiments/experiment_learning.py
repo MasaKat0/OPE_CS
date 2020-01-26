@@ -172,9 +172,9 @@ def main(arguments):
             epol_ipw_sn = estimators.ipw_fit(folds=5, algorithm='Ridge', self_norm=True)
 
             estimators.dm_est_parameters()
-            epol_dm = estimators.dm_fit(folds=5, algorithm='Ridge', self_norm=False)
+            epol_dm = estimators.dm_fit(folds=5, algorithm='Ridge')
             
-            estimators.dml_est_parameters(folds=5, algorithm='Ridge')
+            estimators.dml_est_parameters(folds=5, method='Ridge')
             epol_dml = estimators.dml_fit(folds=5, algorithm='Ridge', self_norm=False)
             epol_dml_sn = estimators.dml_fit(folds=5, algorithm='Ridge', self_norm=True)
 
