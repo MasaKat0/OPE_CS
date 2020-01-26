@@ -57,12 +57,9 @@ class ope_estimators():
             self.bpol_hat_kernel = pi_behavior
         
         r = self.q_hat_kernel/self.p_hat_kernel
-        r[r < 0.001] = 0.001
-        r[r > 20] = 20
         w = self.pi_evaluation_train/self.bpol_hat_kernel
         
         r = np.array([r for c in range(len(self.classes))]).T
-        self.r_hat_kernel = r
 
         denomnator = self.denominator(self_norm)
         
@@ -74,6 +71,7 @@ class ope_estimators():
         if self.f_hat_kernel is None:
             for c in self.classes:
                 while True:
+                    f_list = []
                     perm = np.random.permutation(self.N_hst)
                     Y_temp = self.Y[perm[:100]]
                     X_temp = self.X[perm[:100]]
@@ -86,7 +84,7 @@ class ope_estimators():
                     if len(mu[~((mu > -100)&(mu < 100))]) == 0:
                         break
             
-            self.f_hat_kernel = f_matrix
+            self.f_hat_kernel = f_list
             
         return np.sum(f_matrix*self.pi_evaluation_test)/self.N_evl
 
@@ -141,6 +139,8 @@ class ope_estimators():
             f_evl_matrix = np.zeros(shape=(len(z_tr), len(self.classes)))
             #w_matrix = np.zeros(shape=(len(x_tr), len(self.classes)))
 
+            sn_matrix = np.ones(shape=(len(x_tr), len(self.classes)))
+
             _, a_temp = np.where(a_tr == 1)
             clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_temp, z_tr, algorithm=method, logit=True)
             clf.fit(x_ker_train, a_temp)
@@ -182,13 +182,15 @@ class ope_estimators():
                 clf.fit(x_ker_train, y_tr[:, c])
                 f_hst_matrix[:, c] = clf.predict(x_ker_train)
                 f_evl_matrix[:, c] = clf.predict(x_ker_test)
+
+                sn_matrix[:, c] = np.sum(a_tr[:, c]/p_bhv[:, c])
             
             densratio_obj = densratio(z_tr, x_tr)
             r = densratio_obj.compute_density_ratio(x_tr)
             r = np.array([r for c in self.classes]).T
-
+            
             if self_norm:
-                denominator = np.sum(r*p_evl_hst_cv/p_bhv)
+                denominator = sn_matrix
             else:
                 denominator = self.N_hst
             
@@ -213,7 +215,12 @@ class ope_estimators():
                     
                 self.bpol_hat_kernel = pi_behavior
 
-            return np.sum(self.r_hat_kernel*(self.pi_evaluation_train/self.bpol_hat_kernel))
+            sn_matrix = np.ones(shape=(self.N_hst, len(self.classes)))
+
+            for c in self.classes:
+                sn_matrix[:, c] = np.sum(self.A[:, c]/self.bpol_hat_kernel[:, c])
+
+            return sn_matrix
 
         else:
             return self.N_hst

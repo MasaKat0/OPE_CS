@@ -59,14 +59,8 @@ class op_learning():
         r[r < 0.001] = 0.001
         r[r > 20] = 20
         r = np.array([r for c in range(len(self.classes))]).T
-
-        sn_matrix = np.ones(shape=(self.N_hst, len(self.classes)))
-
-        for c in self.classes:
-            sn_matrix[:, c] = np.sum(self.A[:, c]/self.bpol_hat_kernel[:, c])
         
         self.r_ker_matrix = r
-        self.sn_ker_matrix = sn_matrix
 
     def ipw_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', self_norm=False):
         x_train, x_test = self.X.T, self.Z.T
@@ -133,10 +127,8 @@ class op_learning():
 
                 for lda_idx, lda in enumerate(lda_list):
                     beta = np.zeros(shape=(x_tr.shape[1], len(self.classes)))
-                    print(r_hst_tr.shape)
-                    print(beta.shape)
                     f = lambda b: self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
-                    res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
+                    res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
                     beta = res.x
                     score0 = - self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
                     score = - self.ipw_estimator(x_te, a_te, y_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
@@ -150,7 +142,7 @@ class op_learning():
 
                     score_cv[sigma_idx, lda_idx] = score_cv[sigma_idx, lda_idx] + score
 
-        (sigma_idx_chosen, lda_idx_chosen) = np.unravel_index(np.argmin(score_cv), score_cv.shape)
+        (sigma_idx_chosen, lda_idx_chosen) = np.unravel_index(np.argmax(score_cv), score_cv.shape)
         sigma_chosen = sigma_list[sigma_idx_chosen]
         lda_chosen = lda_list[lda_idx_chosen]
 
@@ -164,7 +156,7 @@ class op_learning():
 
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.ipw_estimator(x_train, self.A, self.Y, self.bpol_hat_kernel, self.r_ker_matrix, b, lmd=lda_chosen, self_norm=self_norm)
-        res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
+        res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
@@ -246,7 +238,7 @@ class op_learning():
                 for lda_idx, lda in enumerate(lda_list):
                     beta = np.zeros(shape=(z_tr.shape[1], len(self.classes)))
                     f = lambda b: self.reg_estimator(z_tr, f_evl_tr, b, lmd=lda)
-                    res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
+                    res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
                     beta = res.x
                     score0 = - self.reg_estimator(z_tr, f_evl_tr, beta, lmd=0.)
                     score = - self.reg_estimator(z_te, f_evl_te, beta, lmd=0.)
@@ -260,9 +252,13 @@ class op_learning():
 
                     score_cv[sigma_idx, lda_idx] = score_cv[sigma_idx, lda_idx] + score
 
-        (sigma_idx_chosen, lda_idx_chosen) = np.unravel_index(np.argmin(score_cv), score_cv.shape)
+        (sigma_idx_chosen, lda_idx_chosen) = np.unravel_index(np.argmax(score_cv), score_cv.shape)
         sigma_chosen = sigma_list[sigma_idx_chosen]
         lda_chosen = lda_list[lda_idx_chosen]
+
+        print(min(score_cv))
+        print('sigma', sigma_chosen)
+        print('lambda', lda_chosen)
 
         x_train = np.exp(-XC_dist/(2*sigma_chosen**2)).T
         x_test = np.exp(-TC_dist/(2*sigma_chosen**2)).T
@@ -274,7 +270,7 @@ class op_learning():
             
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.reg_estimator(x_test, self.f_hat_kernel, b, lmd=lda_chosen)
-        res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
+        res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
@@ -397,7 +393,6 @@ class op_learning():
             
             for k in cv_hst_fold:
                 x_cv.append(np.exp(-XC_dist[:, cv_hst_index==k]/(2*sigma**2)))
-                print((np.exp(-XC_dist[:, cv_hst_index==k]/(2*sigma**2))).shape)
                 a_cv.append(self.A[cv_hst_index==k])
                 y_cv.append(self.Y[cv_hst_index==k])
                 z_cv.append(np.exp(-TC_dist[:, cv_evl_index==k]/(2*sigma**2)))
@@ -442,14 +437,9 @@ class op_learning():
                             p_bhv_hst_tr = np.append(p_bhv_hst_tr, p_bhv_hst_cv[j], axis=0)
                             r_hst_tr = np.append(r_hst_tr, r_hst_cv[j], axis=0)
 
-                print(folds)
-                print(j)
-                print(count)
                 one_x = np.ones((len(x_tr),1))
                 one_z = np.ones((len(z_tr),1))
-                print(x_tr.shape)
                 x_tr = np.concatenate([x_tr, one_x], axis=1)
-                print(x_tr.shape)
                 z_tr = np.concatenate([z_tr, one_z], axis=1)
                 one_x = np.ones((len(x_te),1))
                 one_z = np.ones((len(z_te),1))
@@ -458,10 +448,8 @@ class op_learning():
 
                 for lda_idx, lda in enumerate(lda_list):
                     beta = np.zeros(shape=(x_tr.shape[1], len(self.classes)))
-                    print(r_hst_tr.shape)
-                    print(beta.shape)
                     f = lambda b: self.dml_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, b, lmd=lda, self_norm=self_norm)
-                    res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
+                    res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
                     beta = res.x
                     score0 = - self.dml_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
                     score = - self.dml_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
@@ -475,7 +463,7 @@ class op_learning():
 
                     score_cv[sigma_idx, lda_idx] = score_cv[sigma_idx, lda_idx] + score
 
-        (sigma_idx_chosen, lda_idx_chosen) = np.unravel_index(np.argmin(score_cv), score_cv.shape)
+        (sigma_idx_chosen, lda_idx_chosen) = np.unravel_index(np.argmax(score_cv), score_cv.shape)
         sigma_chosen = sigma_list[sigma_idx_chosen]
         lda_chosen = lda_list[lda_idx_chosen]
 
@@ -489,7 +477,10 @@ class op_learning():
 
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.dml_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
-        res = minimize(f, beta, method='BFGS', options={'maxiter': 300})
+        res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
+        self.x_ker_train = x_train
+        self.x_ker_test = x_test
+        self.res = res
         beta = res.x
         beta_list = beta.reshape(x_train.shape[1], len(self.classes))
 
@@ -507,8 +498,7 @@ class op_learning():
 
         sn_matrix = np.ones(shape=(len(x), len(self.classes)))
         if self_norm is True:
-            for c in self.classes:
-                sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
+            sn_matrix = np.sum(r*w)
         else:
             sn_matrix = len(x)
 
@@ -548,8 +538,7 @@ class op_learning():
 
         sn_matrix = np.ones(shape=(len(x), len(self.classes)))
         if self_norm is True:
-            for c in self.classes:
-                sn_matrix[:, c] = np.sum(a[:, c]/bpol[:, c])
+            sn_matrix = np.sum(r*w)
         else:
             sn_matrix = len(x)
 
