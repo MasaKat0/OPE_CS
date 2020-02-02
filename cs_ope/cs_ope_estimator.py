@@ -27,6 +27,8 @@ class ope_estimators():
         self.bpol_hat_kernel = None
         self.q_hat_kernel = None
         self.p_hat_kernel = None
+        self.r_ML_hat_kernel = None
+        self.f_ML_hat_kernel = None
 
     def ipw(self, self_norm=True):        
         if self.p_hat_kernel is None:
@@ -149,35 +151,6 @@ class ope_estimators():
             w_matrix = p_evl_hst_tr/p_bhv
             
             for c in self.classes:
-                '''
-                clf = KernelRidge(alpha=0.01)
-                clf.fit(x_tr, y_tr[:, c])
-                f_hst_matrix[:, c] = clf.predict(x_tr)
-                f_evl_matrix[:, c] = clf.predict(z_tr)
-
-                clf = KernelRidge(alpha=0.01)
-                clf.fit(x_tr, a_tr[:, c])
-                p_bhv = clf.predict(x_tr)
-                w_matrix[:, c] = p_evl_hst_tr[:, c]/p_bhv
-                '''
-                '''
-                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, y_tr[:, c], z_tr, algorithm=method)
-                clf.fit(x_ker_train, y_tr[:, c])
-                f_hst_matrix[:, c] = clf.predict(x_ker_train)
-                f_evl_matrix[:, c] = clf.predict(x_ker_test)
-                '''
-
-                '''
-                clf = KernelRidge(alpha=0.001)
-                clf.fit(x_tr, y_tr[:, c])
-                f_hst_matrix[:, c] = clf.predict(x_tr)
-                f_evl_matrix[:, c] = clf.predict(z_tr)
-                
-                clf, x_ker_train, x_ker_test = KernelRegression(x_tr, a_tr[:, c], z_tr, algorithm=method, logit=True)
-                clf.fit(x_ker_train, a_tr[:, c])
-                p_bhv = clf.predict(x_ker_train)
-                '''
-
                 clf, x_ker_train, x_ker_test = KernelRegression(x_tr, y_tr[:, c], z_tr, algorithm=method, logit=False)
                 clf.fit(x_ker_train, y_tr[:, c])
                 f_hst_matrix[:, c] = clf.predict(x_ker_train)
@@ -188,7 +161,7 @@ class ope_estimators():
             r = np.array([r for c in self.classes]).T
 
             if self_norm:
-                denominator = np.sum(r*p_evl_hst_cv/p_bhv)
+                denominator = np.sum(r*p_evl_hst_tr/p_bhv)
             else:
                 denominator = self.N_hst
             
@@ -214,6 +187,54 @@ class ope_estimators():
                 self.bpol_hat_kernel = pi_behavior
 
             return np.sum(self.r_hat_kernel*(self.pi_evaluation_train/self.bpol_hat_kernel))
+
+        else:
+            return self.N_hst
+
+    def ipw_ML(self, method='Ridge', self_norm=True):
+        if self.bpol_ML_hat_kernel is None:
+            _, a_temp = np.where(self.A == 1)
+            clf, x_ker_train, x_ker_test = KernelRegression(self.X, a_temp, self.X, algorithm=method, logit=True)
+            clf.fit(x_ker_train, a_temp)
+
+            self.bpol_ML_hat_kernel = clf.predict_proba(x_ker_train)
+        
+        if self.r_ML_hat_kernel is None:
+            densratio_obj = densratio(self.Z, self.X)
+            r = densratio_obj.compute_density_ratio(self.X)
+            r = np.array([r for c in self.classes]).T
+            self.r_ML_hat_kernel = r
+
+        w = self.pi_evaluation_train/self.bpol_ML_hat_kernel
+        
+        denomnator = self.denominator_ML(self_norm)
+        
+        return np.sum(self.A*self.Y*w*self.r_ML_hat_kernel/denomnator)
+
+    def dm_ML(self, method='Ridge'):        
+        f_matrix = np.zeros(shape=(self.N_evl, len(self.classes)))
+
+        if self.f_ML_hat_kernel is None:
+            for c in self.classes:
+                while True:
+                    clf, x_ker_train, x_ker_test = KernelRegression(self.X, self.Y[:, c], self.Z, algorithm=method, logit=False)
+                    clf.fit(x_ker_train, self.Y[:, c])
+                    f_matrix[:, c] = clf.predict(x_ker_test)
+            
+            self.f_ML_hat_kernel = f_matrix
+            
+        return np.sum(self.f_ML_hat_kernel*self.pi_evaluation_test)/self.N_evl
+    
+    def denominator_ML(self, self_norm):
+        if self_norm:
+            if self.bpol_ML_hat_kernel is None:
+                _, a_temp = np.where(self.A == 1)
+                clf, x_ker_train, x_ker_test = KernelRegression(self.X, a_temp, self.X, algorithm=method, logit=True)
+                clf.fit(x_ker_train, a_temp)
+
+                self.bpol_ML_hat_kernel = clf.predict_proba(x_ker_train)
+                    
+            return np.sum(self.r_ML_hat_kernel*(self.pi_evaluation_train/self.bpol_ML_hat_kernel))
 
         else:
             return self.N_hst

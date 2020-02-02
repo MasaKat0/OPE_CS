@@ -256,10 +256,6 @@ class op_learning():
         sigma_chosen = sigma_list[sigma_idx_chosen]
         lda_chosen = lda_list[lda_idx_chosen]
 
-        print(min(score_cv))
-        print('sigma', sigma_chosen)
-        print('lambda', lda_chosen)
-
         x_train = np.exp(-XC_dist/(2*sigma_chosen**2)).T
         x_test = np.exp(-TC_dist/(2*sigma_chosen**2)).T
 
@@ -361,6 +357,7 @@ class op_learning():
         self.prepare = True
 
     def dml_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', self_norm=False):
+        print('start')
         x_train, x_test = self.X.T, self.Z.T
         XC_dist, TC_dist, CC_dist, n, num_basis = dist(x_train, x_test, num_basis)
         # setup the cross validation
@@ -478,6 +475,11 @@ class op_learning():
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.dml_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
         res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
+
+        print(min(score_cv))
+        print('sigma', sigma_chosen)
+        print('lambda', lda_chosen)
+        
         self.x_ker_train = x_train
         self.x_ker_test = x_test
         self.res = res

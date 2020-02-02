@@ -64,7 +64,7 @@ def data_generation(data_name, N):
     for i in range(N):
         Y_matrix[i, Y[i]] = 1
 
-    prob = 1/(1+np.exp(-(X[:,0]+X[:,1]+X[:,2]+X[:,3]+X[:,4]+X[:,5]+X[:,6]+0.1*np.random.normal(size=len(X)))))
+    prob = 1/(1+np.exp(-(X[:,0]+X[:,1]+X[:,2]+X[:,3]+X[:,4]+0.1*np.random.normal(size=len(X)))))
     rand = np.random.uniform(size=len(X))
 
     prob_base = prob
