@@ -64,7 +64,7 @@ def data_generation(data_name, N):
     for i in range(N):
         Y_matrix[i, Y[i]] = 1
 
-    prob = 1/(1+np.exp(-(X[:,0]+X[:,1]+X[:,2]+X[:,3]+X[:,4]+X[:,5]+X[:,6]+0.1*np.random.normal(size=len(X)))))
+    prob = 1/(1+np.exp(-(X[:,0]+X[:,1]+X[:,2]+X[:,3]+X[:,4]+0.1*np.random.normal(size=len(X)))))
     rand = np.random.uniform(size=len(X))
 
     prob_base = prob
@@ -139,6 +139,10 @@ def main(arguments):
     res_dml1_sn_list = np.zeros((num_trials, len(alphas)))
     res_dml2_sn_list = np.zeros((num_trials, len(alphas)))
 
+    res_ipw3_ML_list = np.zeros((num_trials, len(alphas)))
+    res_ipw3_ML_sn_list = np.zeros((num_trials, len(alphas)))
+    res_dm_ML_list = np.zeros((num_trials, len(alphas)))
+
     for trial in range(num_trials):
         X, Y, Y_matrix, train_test_split, classes, N, N_train, N_test = data_generation(data_name, sample_size)
         X_train, X_test = X[train_test_split], X[~train_test_split]
@@ -186,7 +190,10 @@ def main(arguments):
             print('DML1:', res_dml1)
             print('DML1_SN:', res_dml1_sn)
             print('DML2:', res_dml2)
-            print('DML2_SN:', res_dml2_sn)
+            print('DML2_ML:', res_dml2_sn)
+            print('IPW3_ML:', res_ipw3_ML)
+            print('IPW3_ML_SN:', res_ipw3_ML_sn)
+            print('DM_ML:', res_dm_ML)
 
             res_ipw3_list[trial, idx_alpha] = res_ipw3
             res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
@@ -195,6 +202,9 @@ def main(arguments):
             res_dml1_sn_list[trial, idx_alpha] = res_dml1_sn
             res_dml2_list[trial, idx_alpha] = res_dml2
             res_dml2_sn_list[trial, idx_alpha] = res_dml2_sn
+            res_ipw3_ML_list[trial, idx_alpha] = res_ipw3_ML
+            res_ipw3_ML_sn_list[trial, idx_alpha] = res_ipw3_ML_sn
+            res_dm_ML_list[trial, idx_alpha] = res_dm_ML
 
             np.savetxt("exp_results/true_value_%s.csv"%data_name, tau_list, delimiter=",")
             np.savetxt("exp_results/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
@@ -204,6 +214,9 @@ def main(arguments):
             np.savetxt("exp_results/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
             np.savetxt("exp_results/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
             np.savetxt("exp_results/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_ML_%s.csv"%data_name, res_ipw3_ML, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_ML_sn_%s.csv"%data_name, res_ipw3_ML_sn, delimiter=",")
+            np.savetxt("exp_results/res_dm_ML_%s.csv"%data_name, res_dm_ML, delimiter=",")
 
         tau_list[trial] = tau
     

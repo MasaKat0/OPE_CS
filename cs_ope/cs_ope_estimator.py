@@ -29,6 +29,7 @@ class ope_estimators():
         self.p_hat_kernel = None
         self.r_ML_hat_kernel = None
         self.f_ML_hat_kernel = None
+        self.bpol_ML_hat_kernel = None
 
     def ipw(self, self_norm=True):        
         if self.p_hat_kernel is None:
@@ -216,10 +217,9 @@ class ope_estimators():
 
         if self.f_ML_hat_kernel is None:
             for c in self.classes:
-                while True:
-                    clf, x_ker_train, x_ker_test = KernelRegression(self.X, self.Y[:, c], self.Z, algorithm=method, logit=False)
-                    clf.fit(x_ker_train, self.Y[:, c])
-                    f_matrix[:, c] = clf.predict(x_ker_test)
+                clf, x_ker_train, x_ker_test = KernelRegression(self.X, self.Y[:, c], self.Z, algorithm=method, logit=False)
+                clf.fit(x_ker_train, self.Y[:, c])
+                f_matrix[:, c] = clf.predict(x_ker_test)
             
             self.f_ML_hat_kernel = f_matrix
             

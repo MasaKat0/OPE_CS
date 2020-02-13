@@ -26,6 +26,7 @@ class op_learning():
         self.q_hat_kernel = None
         self.p_hat_kernel = None
         self.prepare = False
+        self.r_ker_matrix = None
 
     def ipw_est_parameters(self):
         if self.p_hat_kernel is None:
@@ -61,6 +62,20 @@ class op_learning():
         r = np.array([r for c in range(len(self.classes))]).T
         
         self.r_ker_matrix = r
+
+    def ipw_est_ridge_parameters(self, method='Ridge'):
+        if self.bpol_hat_kernel is None:
+            _, a_temp = np.where(self.A == 1)
+            clf, x_ker_train, x_ker_test = KernelRegression(self.X, a_temp, self.X, algorithm=method, logit=True)
+            clf.fit(x_ker_train, a_temp)
+
+            self.bpol_hat_kernel = clf.predict_proba(x_ker_train)
+        
+        if self.r_ker_matrix is None:
+            densratio_obj = densratio(self.Z, self.X)
+            r = densratio_obj.compute_density_ratio(self.X)
+            r = np.array([r for c in self.classes]).T
+            self.r_ker_matrix = r
 
     def ipw_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', self_norm=False):
         x_train, x_test = self.X.T, self.Z.T
@@ -243,8 +258,6 @@ class op_learning():
                     score0 = - self.reg_estimator(z_tr, f_evl_tr, beta, lmd=0.)
                     score = - self.reg_estimator(z_te, f_evl_te, beta, lmd=0.)
 
-                    print('score0', score0)
-                    print('score', score)
                     """
                     if math.isnan(score):
                         code.interact(local=dict(globals(), **locals()))
