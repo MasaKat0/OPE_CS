@@ -139,6 +139,10 @@ def main(arguments):
     res_dml1_sn_list = np.zeros((num_trials, len(alphas)))
     res_dml2_sn_list = np.zeros((num_trials, len(alphas)))
 
+    res_ipw3_ML_list = np.zeros((num_trials, len(alphas)))
+    res_ipw3_ML_sn_list = np.zeros((num_trials, len(alphas)))
+    res_dm_ML_list = np.zeros((num_trials, len(alphas)))
+
     for trial in range(num_trials):
         X, Y, Y_matrix, train_test_split, classes, N, N_train, N_test = data_generation(data_name, sample_size)
         X_train, X_test = X[train_test_split], X[~train_test_split]
@@ -169,7 +173,10 @@ def main(arguments):
             estimators = ope_estimators(X_seq_train, A_historical_matrix, Y_historical_matrix, X_test, classes, pi_evaluation_seq_train, pi_evaluation_test)
             res_ipw3 = estimators.ipw(self_norm=False)
             res_ipw3_sn = estimators.ipw(self_norm=True)
+            res_ipw3_ML = estimators.ipw_ML(method='Ridge', self_norm=False)
+            res_ipw3_ML_sn = estimators.ipw_ML(method='Ridge', self_norm=True)
             res_dm = estimators.dm()
+            res_dm_ML = estimators.dm_ML(method='Ridge')
             res_dml1 = estimators.dml(self_norm=False, method='Lasso')
             res_dml2 = estimators.dml(self_norm=False, method='Ridge')
             res_dml1_sn = estimators.dml(self_norm=True, method='Lasso')
@@ -183,7 +190,10 @@ def main(arguments):
             print('DML1:', res_dml1)
             print('DML1_SN:', res_dml1_sn)
             print('DML2:', res_dml2)
-            print('DML2_SN:', res_dml2_sn)
+            print('DML2_ML:', res_dml2_sn)
+            print('IPW3_ML:', res_ipw3_ML)
+            print('IPW3_ML_SN:', res_ipw3_ML_sn)
+            print('DM_ML:', res_dm_ML)
 
             res_ipw3_list[trial, idx_alpha] = res_ipw3
             res_ipw3_sn_list[trial, idx_alpha] = res_ipw3_sn
@@ -192,6 +202,9 @@ def main(arguments):
             res_dml1_sn_list[trial, idx_alpha] = res_dml1_sn
             res_dml2_list[trial, idx_alpha] = res_dml2
             res_dml2_sn_list[trial, idx_alpha] = res_dml2_sn
+            res_ipw3_ML_list[trial, idx_alpha] = res_ipw3_ML
+            res_ipw3_ML_sn_list[trial, idx_alpha] = res_ipw3_ML_sn
+            res_dm_ML_list[trial, idx_alpha] = res_dm_ML
 
             np.savetxt("exp_results/true_value_%s.csv"%data_name, tau_list, delimiter=",")
             np.savetxt("exp_results/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
@@ -201,6 +214,9 @@ def main(arguments):
             np.savetxt("exp_results/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
             np.savetxt("exp_results/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
             np.savetxt("exp_results/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_ML_%s.csv"%data_name, res_ipw3_ML, delimiter=",")
+            np.savetxt("exp_results/res_ipw3_ML_sn_%s.csv"%data_name, res_ipw3_ML_sn, delimiter=",")
+            np.savetxt("exp_results/res_dm_ML_%s.csv"%data_name, res_dm_ML, delimiter=",")
 
         tau_list[trial] = tau
     

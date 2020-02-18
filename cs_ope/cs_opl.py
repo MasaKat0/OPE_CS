@@ -109,7 +109,6 @@ class op_learning():
                 r_hst_cv.append(self.r_ker_matrix[cv_hst_index==k])
 
             for k in range(folds):
-                #print(h0_cv[0])
                 # calculate the h vectors for training and test
                 count = 0
                 for j in range(folds):
@@ -148,8 +147,6 @@ class op_learning():
                     score0 = - self.ipw_estimator(x_tr, a_tr, y_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
                     score = - self.ipw_estimator(x_te, a_te, y_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
 
-                    print('score0', score0)
-                    print('score', score)
                     """
                     if math.isnan(score):
                         code.interact(local=dict(globals(), **locals()))
@@ -228,7 +225,6 @@ class op_learning():
                 f_evl_cv.append(self.f_hat_kernel[cv_evl_index==k])
 
             for k in range(folds):
-                #print(h0_cv[0])
                 # calculate the h vectors for training and test
                 count = 0
                 for j in range(folds):
@@ -323,7 +319,6 @@ class op_learning():
             perm_evl_cv.append(perm_evl[cv_evl_index==k])
 
         for k in range(folds):
-            #print(h0_cv[0])
             # calculate the h vectors for training and test
             count = 0
             for j in range(folds):
@@ -370,7 +365,6 @@ class op_learning():
         self.prepare = True
 
     def dml_fit(self, folds=5, num_basis=False, sigma_list=None, lda_list=None, algorithm='Ridge', self_norm=False):
-        print('start')
         x_train, x_test = self.X.T, self.Z.T
         XC_dist, TC_dist, CC_dist, n, num_basis = dist(x_train, x_test, num_basis)
         # setup the cross validation
@@ -412,7 +406,6 @@ class op_learning():
                 r_hst_cv.append(self.r_array[cv_hst_index==k])
 
             for k in range(folds):
-                #print(h0_cv[0])
                 # calculate the h vectors for training and test
                 count = 0
                 for j in range(folds):
@@ -464,8 +457,6 @@ class op_learning():
                     score0 = - self.dml_estimator(x_tr, a_tr, y_tr, z_tr, f_hst_tr, f_evl_tr, p_bhv_hst_tr, r_hst_tr, beta, lmd=0, self_norm=self_norm)
                     score = - self.dml_estimator(x_te, a_te, y_te, z_te, f_hst_te, f_evl_te, p_bhv_hst_te, r_hst_te, beta, lmd=0, self_norm=self_norm)
 
-                    print('score0', score0)
-                    print('score', score)
                     """
                     if math.isnan(score):
                         code.interact(local=dict(globals(), **locals()))
@@ -488,10 +479,6 @@ class op_learning():
         beta = np.zeros(shape=(x_train.shape[1], len(self.classes)))
         f = lambda b: self.dml_estimator(x_train, self.A, self.Y, x_test, self.f_hst_array, self.f_evl_array, self.bpol_array, self.r_array, b, lmd=lda_chosen, self_norm=self_norm)
         res = minimize(f, beta, method='BFGS', options={'maxiter': 100000})
-
-        print(min(score_cv))
-        print('sigma', sigma_chosen)
-        print('lambda', lda_chosen)
         
         self.x_ker_train = x_train
         self.x_ker_test = x_test
