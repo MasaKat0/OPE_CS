@@ -1,6 +1,6 @@
-This is a repository for reproducing the experiments in 'Off-Policy Evaluation and Learning for External Validity under a Covariate Shift'.
+This is a repository for reproducing the experiments of 'Off-Policy Evaluation and Learning for External Validity under a Covariate Shift'.
 
-Before executing the program, download datasets [satimage](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multiclass/satimage.scale), [vehicle](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multiclass/vehicle.scale), and [pendigits](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multiclass/pendigits).
+Before executing the program, download datasets, [satimage](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multiclass/satimage.scale), [vehicle](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multiclass/vehicle.scale), and [pendigits](https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multiclass/pendigits).
 
 ## Experiments of Off-Policy Evaluation
 ```bash
