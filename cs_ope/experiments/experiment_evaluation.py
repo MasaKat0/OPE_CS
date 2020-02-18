@@ -206,17 +206,17 @@ def main(arguments):
             res_ipw3_ML_sn_list[trial, idx_alpha] = res_ipw3_ML_sn
             res_dm_ML_list[trial, idx_alpha] = res_dm_ML
 
-            np.savetxt("exp_results/true_value_%s.csv"%data_name, tau_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_sn_%s.csv"%data_name, res_ipw3_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_dm_%s.csv"%data_name, res_dm_list, delimiter=",")
-            np.savetxt("exp_results/res_dml1_%s.csv"%data_name, res_dml1_list, delimiter=",")
-            np.savetxt("exp_results/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
-            np.savetxt("exp_results/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_ML_%s.csv"%data_name, res_ipw3_ML, delimiter=",")
-            np.savetxt("exp_results/res_ipw3_ML_sn_%s.csv"%data_name, res_ipw3_ML_sn, delimiter=",")
-            np.savetxt("exp_results/res_dm_ML_%s.csv"%data_name, res_dm_ML, delimiter=",")
+            np.savetxt("results_ope/true_value_%s.csv"%data_name, tau_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_sn_%s.csv"%data_name, res_ipw3_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_dm_%s.csv"%data_name, res_dm_list, delimiter=",")
+            np.savetxt("results_ope/res_dml1_%s.csv"%data_name, res_dml1_list, delimiter=",")
+            np.savetxt("results_ope/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
+            np.savetxt("results_ope/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_ML_%s.csv"%data_name, res_ipw3_ML, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_ML_sn_%s.csv"%data_name, res_ipw3_ML_sn, delimiter=",")
+            np.savetxt("results_ope/res_dm_ML_%s.csv"%data_name, res_dm_ML, delimiter=",")
 
         tau_list[trial] = tau
     
