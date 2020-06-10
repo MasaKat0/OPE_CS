@@ -18,10 +18,11 @@ def process_args(arguments):
                         help='Name of dataset')
     parser.add_argument('--sample_size', '-s', type=int, default=1000,
                         help='Sample size')
-    parser.add_argument('--num_trials', '-n', type=int, default=200,
+    parser.add_argument('--num_trials', '-n', type=int, default=20,
                         help='The number of trials')
     parser.add_argument('--preset', '-p', type=str, default=None,
-                        choices=['satimage', 'vehicle', 'pendigits'],
+                        choices=['satimage300', 'vehicle300', 'pendigits300',
+                        'satimage500', 'vehicle500', 'pendigits500','satimage1000', 'pendigits1000'],
                         help="Presets of configuration")
     args = parser.parse_args(arguments)
 
@@ -37,6 +38,42 @@ def process_args(arguments):
         args.sample_size = 800
         args.dataset = 'pendigits'
         args.num_trials = 50
+
+    if args.preset == 'satimage300':
+        args.sample_size = 300
+        args.dataset = 'satimage'
+        args.num_trials = 50
+    elif args.preset == 'vehicle300':
+        args.sample_size = 300
+        args.dataset = 'vehicle'
+        args.num_trials = 50
+    elif args.preset == "pendigits300":
+        args.sample_size = 300
+        args.dataset = 'pendigits'
+        args.num_trials = 50
+
+    if args.preset == 'satimage500':
+        args.sample_size = 500
+        args.dataset = 'satimage'
+        args.num_trials = 50
+    elif args.preset == 'vehicle500':
+        args.sample_size = 500
+        args.dataset = 'vehicle'
+        args.num_trials = 50
+    elif args.preset == "pendigits500":
+        args.sample_size = 500
+        args.dataset = 'pendigits'
+        args.num_trials = 50
+
+    if args.preset == 'satimage1000':
+        args.sample_size = 1000
+        args.dataset = 'satimage'
+        args.num_trials = 20
+    elif args.preset == "pendigits1000":
+        args.sample_size = 1000
+        args.dataset = 'pendigits'
+        args.num_trials = 20
+
     return args
 
 def data_generation(data_name, N):
@@ -206,17 +243,17 @@ def main(arguments):
             res_ipw3_ML_sn_list[trial, idx_alpha] = res_ipw3_ML_sn
             res_dm_ML_list[trial, idx_alpha] = res_dm_ML
 
-            np.savetxt("results_ope/true_value_%s.csv"%data_name, tau_list, delimiter=",")
-            np.savetxt("results_ope/res_ipw3_%s.csv"%data_name, res_ipw3_list, delimiter=",")
-            np.savetxt("results_ope/res_ipw3_sn_%s.csv"%data_name, res_ipw3_sn_list, delimiter=",")
-            np.savetxt("results_ope/res_dm_%s.csv"%data_name, res_dm_list, delimiter=",")
-            np.savetxt("results_ope/res_dml1_%s.csv"%data_name, res_dml1_list, delimiter=",")
-            np.savetxt("results_ope/res_dml1_sn_%s.csv"%data_name, res_dml1_sn_list, delimiter=",")
-            np.savetxt("results_ope/res_dml2_%s.csv"%data_name, res_dml2_list, delimiter=",")
-            np.savetxt("results_ope/res_dml2_sn_%s.csv"%data_name, res_dml２_sn_list, delimiter=",")
-            np.savetxt("results_ope/res_ipw3_ML_%s.csv"%data_name, res_ipw3_ML, delimiter=",")
-            np.savetxt("results_ope/res_ipw3_ML_sn_%s.csv"%data_name, res_ipw3_ML_sn, delimiter=",")
-            np.savetxt("results_ope/res_dm_ML_%s.csv"%data_name, res_dm_ML, delimiter=",")
+            np.savetxt("results_ope/true_value_%s_%d.csv"%(data_name, sample_size), tau_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_%s_%d.csv"%(data_name, sample_size), res_ipw3_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_sn_%s_%d.csv"%(data_name, sample_size), res_ipw3_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_dm_%s_%d.csv"%(data_name, sample_size), res_dm_list, delimiter=",")
+            np.savetxt("results_ope/res_dml1_%s_%d.csv"%(data_name, sample_size), res_dml1_list, delimiter=",")
+            np.savetxt("results_ope/res_dml1_sn_%s_%d.csv"%(data_name, sample_size), res_dml1_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_dml2_%s_%d.csv"%(data_name, sample_size), res_dml2_list, delimiter=",")
+            np.savetxt("results_ope/res_dml2_sn_%s_%d.csv"%(data_name, sample_size), res_dml２_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_ML_%s_%d.csv"%(data_name, sample_size), res_ipw3_ML_list, delimiter=",")
+            np.savetxt("results_ope/res_ipw3_ML_sn_%s_%d.csv"%(data_name, sample_size), res_ipw3_ML_sn_list, delimiter=",")
+            np.savetxt("results_ope/res_dm_ML_%s_%d.csv"%(data_name, sample_size), res_dm_ML_list, delimiter=",")
 
         tau_list[trial] = tau
     
