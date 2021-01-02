@@ -115,7 +115,7 @@ def KernelRegression(x_train, t_train, x_test, folds=5, num_basis=False, sigma_l
         if logit is True:
             clf = linear_model.LogisticRegression(penalty='l2', C=lda_chosen, solver='saga', multi_class='auto')
         else:
-            clf = linear_model.Lasso(lda_chosen)
+            clf = linear_model.Ridge(lda_chosen)
 
     return clf, x_train, x_test
 
